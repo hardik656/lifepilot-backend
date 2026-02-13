@@ -5,7 +5,6 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
 from automation.cancel_bot import start_cancellation_bot
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,6 +15,16 @@ from collections import defaultdict
 from datetime import datetime
 import csv
 import re
+app = FastAPI()
+
+# 🚀 ADD THIS TO CONNECT YOUR PHONE
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows your phone to connect from anywhere
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # =========================================================
 # DATABASE SETUP
