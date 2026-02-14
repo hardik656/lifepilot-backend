@@ -42,6 +42,7 @@ class Transaction(Base):
     merchant = Column(String)
     amount = Column(Float)
     date = Column(String, default=datetime.now().strftime("%Y-%m-%d"))
+    status = Column(String, default="active")
 
 Base.metadata.create_all(bind=engine)
 
@@ -135,10 +136,11 @@ def handle_investment(data: InvestmentRequest):
     
     db = SessionLocal()
     
-    # Update subscription status to 'invested'
+    # Update or create investment record
     existing = db.query(Transaction).filter(
         Transaction.merchant == data.merchant,
-        Transaction.amount == data.monthly_cost
+        Transaction.amount == data.monthly_cost,
+        Transaction.status == "active"
     ).first()
     
     if existing:
@@ -191,7 +193,7 @@ def parse_sms(data: SMSInput):
             ).first()
 
             if not existing:
-                t = Transaction(merchant=merchant, amount=amount, date=current_date)
+                t = Transaction(merchant=merchant, amount=amount, date=current_date, status="active")
                 db.add(t)
                 count += 1
     db.commit()
