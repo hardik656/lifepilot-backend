@@ -56,6 +56,10 @@ class CancelRequest(BaseModel):
     username: str = "user@example.com"
     password: str = "password123"
 
+class InvestmentRequest(BaseModel):
+    merchant: str
+    monthly_cost: float
+
 # =========================================================
 # ROUTES: DETECTION
 # =========================================================
@@ -65,6 +69,12 @@ def detect_subscriptions():
     db = SessionLocal()
     rows = db.query(Transaction).all()
     merchant_data = defaultdict(lambda: {"amounts": [], "last_date": ""})
+    
+    # Calculate total invested amount
+    total_invested = sum(
+        row.amount for row in rows 
+        if row.status == "invested"
+    )
     
     for r in rows:
         merchant_data[r.merchant]["amounts"].append(r.amount)
@@ -93,7 +103,7 @@ def detect_subscriptions():
                 "is_stale": is_stale
             })
     db.close()
-    return {"subscriptions": result, "total_savings": round(total_savings_sum, 2)}
+    return {"subscriptions": result, "total_savings": round(total_savings_sum, 2), "total_invested": round(total_invested, 2)}
 
 # =========================================================
 # ROUTES: AUTOMATION
@@ -110,6 +120,45 @@ def handle_cancel(data: CancelRequest):
     if success:
         return {"status": "success", "message": f"Automation started for {data.merchant}"}
     return {"status": "error", "message": "Bot failed to execute"}
+
+# =========================================================
+# ROUTES: INVESTMENT TRACKING
+# =========================================================
+
+@app.post("/invest/{merchant}")
+def handle_investment(data: InvestmentRequest):
+    """
+    Records when user invests a subscription into Gold Vault.
+    Updates subscription status to 'invested' and tracks total investments.
+    """
+    print(f"🏆 Investment: Received request to invest {data.merchant} for ${data.monthly_cost}")
+    
+    db = SessionLocal()
+    
+    # Update subscription status to 'invested'
+    existing = db.query(Transaction).filter(
+        Transaction.merchant == data.merchant,
+        Transaction.amount == data.monthly_cost
+    ).first()
+    
+    if existing:
+        existing.status = "invested"
+        db.commit()
+        print(f"✅ Updated {data.merchant} status to 'invested'")
+    else:
+        # Create new investment record
+        investment = Transaction(
+            merchant=data.merchant,
+            amount=data.monthly_cost,
+            date=datetime.now().strftime("%Y-%m-%d"),
+            status="invested"
+        )
+        db.add(investment)
+        db.commit()
+        print(f"✅ Created investment record for {data.merchant}")
+    
+    db.close()
+    return {"status": "success", "message": f"Investment recorded for {data.merchant}"}
 
 # =========================================================
 # ROUTES: UTILS
