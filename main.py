@@ -274,7 +274,14 @@ def reset_database():
 @app.delete("/clear")
 def clear_data():
     db = SessionLocal()
-    db.query(Transaction).delete()
-    db.commit()
-    db.close()
-    return {"status": "Database cleared!"}
+    try:
+        deleted_count = db.query(Transaction).delete()
+        db.commit()
+        print(f"✅ Clear complete: deleted {deleted_count} transactions")
+        db.close()
+        return {"status": "success", "message": "Database cleared!", "deleted_count": deleted_count}
+    except Exception as e:
+        db.rollback()
+        db.close()
+        print(f"❌ Error clearing database: {e}")
+        return {"status": "error", "message": f"Failed to clear database: {e}"}
