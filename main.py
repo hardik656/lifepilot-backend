@@ -41,6 +41,7 @@ class Transaction(Base):
     id = Column(Integer, primary_key=True)
     merchant = Column(String)
     amount = Column(Float)
+    currency = Column(String, default="$")
     date = Column(String, default=datetime.now().strftime("%Y-%m-%d"))
     status = Column(String, default="active")
 
@@ -69,7 +70,7 @@ class InvestmentRequest(BaseModel):
 def detect_subscriptions():
     db = SessionLocal()
     rows = db.query(Transaction).all()
-    merchant_data = defaultdict(lambda: {"amounts": [], "last_date": ""})
+    merchant_data = defaultdict(lambda: {"amounts": [], "last_date": "", "currencies": []})
     
     # Calculate total invested amount
     total_invested = sum(
@@ -79,6 +80,7 @@ def detect_subscriptions():
     
     for r in rows:
         merchant_data[r.merchant]["amounts"].append(r.amount)
+        merchant_data[r.merchant]["currencies"].append(r.currency)
         if not merchant_data[r.merchant]["last_date"] or r.date > merchant_data[r.merchant]["last_date"]:
             merchant_data[r.merchant]["last_date"] = r.date
     
@@ -93,12 +95,16 @@ def detect_subscriptions():
             last_dt = datetime.strptime(data["last_date"], "%Y-%m-%d")
             days_diff = (today - last_dt).days
             
+            # Get most common currency for this merchant
+            most_common_currency = max(set(data["currencies"]), key=data["currencies"].count)
+            
             # STALE LOGIC
             is_stale = True
             
             result.append({
                 "merchant": merchant,
                 "monthly_cost": round(avg_cost, 2),
+                "currency": most_common_currency,
                 "occurrences": len(data["amounts"]),
                 "last_seen_days": days_diff,
                 "is_stale": is_stale
@@ -175,27 +181,38 @@ def parse_sms(data: SMSInput):
 
     for line in lines:
         if not line.strip(): continue
-        amount_match = re.search(r"\$?\s?(\d+(?:\.\d{1,2})?)", line)
+        # Dynamic currency detection: Capture currency prefix and amount
+        currency_match = re.search(r"(Rs\.?|\$|£|€)\s?(\d+(?:\.\d{1,2})?)", line)
+        amount_match = re.search(r"\$?\s?(\d+(?:\.\d{1,2})?)", line)  # Fallback
         # 🧹 IMPROVED REGEX: Captures only the first word after the trigger for cleaner UI
         merchant_match = re.search(r"(?:for|at|to|[:]|spent)\s+([A-Za-z]+)", line, re.IGNORECASE)
 
-        if amount_match:
+        if currency_match:
+            amount = float(currency_match.group(2))
+            currency = currency_match.group(1)
+            # Normalize currency symbols
+            if currency == 'Rs' or currency == 'Rs.':
+                currency = 'Rs.'
+        elif amount_match:
             amount = float(amount_match.group(1))
+            currency = "$"  # Default currency
+        else:
+            continue
             
-            # 🚀 DATA CLEANUP: Extracts only the core name and capitalizes it (e.g., "NETFLIX" -> "Netflix")
-            raw_merchant = merchant_match.group(1).strip() if merchant_match else "unknown"
-            merchant = raw_merchant.split()[0].capitalize() 
-            
-            existing = db.query(Transaction).filter(
-                Transaction.merchant == merchant, 
-                Transaction.amount == amount,
-                Transaction.date == current_date
-            ).first()
+        # 🚀 DATA CLEANUP: Extracts only the core name and capitalizes it (e.g., "NETFLIX" -> "Netflix")
+        raw_merchant = merchant_match.group(1).strip() if merchant_match else "unknown"
+        merchant = raw_merchant.split()[0].capitalize() 
+        
+        existing = db.query(Transaction).filter(
+            Transaction.merchant == merchant, 
+            Transaction.amount == amount,
+            Transaction.date == current_date
+        ).first()
 
-            if not existing:
-                t = Transaction(merchant=merchant, amount=amount, date=current_date, status="active")
-                db.add(t)
-                count += 1
+        if not existing:
+            t = Transaction(merchant=merchant, amount=amount, currency=currency, date=current_date, status="active")
+            db.add(t)
+            count += 1
     db.commit()
     db.close()
     return {"parsed_transactions": count}
