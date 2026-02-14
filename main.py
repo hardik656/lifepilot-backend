@@ -73,11 +73,11 @@ def detect_subscriptions():
     rows = db.query(Transaction).all()
     merchant_data = defaultdict(lambda: {"amounts": [], "last_date": "", "currencies": []})
     
-    # Calculate total invested amount
-    total_invested = sum(
-        row.amount for row in rows 
-        if row.status == "invested"
-    )
+    # Calculate total invested amount by currency
+    currency_totals = defaultdict(float)
+    for row in rows:
+        if row.status == "invested":
+            currency_totals[row.currency] += row.amount
     
     for r in rows:
         merchant_data[r.merchant]["amounts"].append(r.amount)
@@ -111,7 +111,16 @@ def detect_subscriptions():
                 "is_stale": is_stale
             })
     db.close()
-    return {"subscriptions": result, "total_savings": round(total_savings_sum, 2), "total_invested": round(total_invested, 2)}
+    return {
+        "subscriptions": result, 
+        "total_savings": round(total_savings_sum, 2), 
+        "total_invested": round(sum(currency_totals.values()), 2),
+        "currency_totals": {
+            "USD": round(currency_totals.get("$", 0), 2),
+            "INR": round(currency_totals.get("Rs.", 0), 2),
+            "GBP": round(currency_totals.get("£", 0), 2)
+        }
+    }
 
 # =========================================================
 # ROUTES: AUTOMATION
@@ -218,6 +227,49 @@ def parse_sms(data: SMSInput):
     db.commit()
     db.close()
     return {"parsed_transactions": count}
+
+@app.delete("/subscriptions/{merchant}")
+def delete_subscription(merchant: str):
+    """
+    Delete a subscription by merchant name.
+    Removes all transactions for the given merchant.
+    """
+    print(f"🗑️ Deleting subscription: {merchant}")
+    db = SessionLocal()
+    
+    try:
+        # Delete all transactions for this merchant
+        deleted_count = db.query(Transaction).filter(Transaction.merchant == merchant).delete()
+        db.commit()
+        print(f"✅ Deleted {deleted_count} transactions for {merchant}")
+        db.close()
+        return {"status": "success", "message": f"Deleted {merchant} subscription", "deleted_count": deleted_count}
+    except Exception as e:
+        db.rollback()
+        db.close()
+        print(f"❌ Error deleting subscription: {e}")
+        return {"status": "error", "message": f"Failed to delete {merchant} subscription"}
+
+@app.post("/reset")
+def reset_database():
+    """
+    Clear all data from database.
+    Called by frontend Reset button.
+    """
+    print("🔄 Resetting entire database")
+    db = SessionLocal()
+    
+    try:
+        deleted_count = db.query(Transaction).delete()
+        db.commit()
+        print(f"✅ Reset complete: deleted {deleted_count} transactions")
+        db.close()
+        return {"status": "success", "message": "Database reset complete", "deleted_count": deleted_count}
+    except Exception as e:
+        db.rollback()
+        db.close()
+        print(f"❌ Error resetting database: {e}")
+        return {"status": "error", "message": "Failed to reset database"}
 
 @app.delete("/clear")
 def clear_data():
