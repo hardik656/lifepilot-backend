@@ -15,7 +15,9 @@ from collections import defaultdict
 from datetime import datetime
 import csv
 import re
-app = FastAPI()
+
+# 🚀 CONSOLIDATE APP DEFINITION
+app = FastAPI(title="LifePilot AI 🚀")
 
 # 🚀 ADD THIS TO CONNECT YOUR PHONE
 app.add_middleware(
@@ -44,18 +46,6 @@ class Transaction(Base):
 Base.metadata.create_all(bind=engine)
 
 # =========================================================
-# APP CONFIG
-# =========================================================
-app = FastAPI(title="LifePilot AI 🚀")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# =========================================================
 # DATA MODELS
 # =========================================================
 class SMSInput(BaseModel):
@@ -70,7 +60,7 @@ class CancelRequest(BaseModel):
 # ROUTES: DETECTION
 # =========================================================
 
-@app.get("/detect")
+@app.get("/subscriptions")
 def detect_subscriptions():
     db = SessionLocal()
     rows = db.query(Transaction).all()

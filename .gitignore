@@ -1,3 +1,7 @@
 ﻿venv/
 __pycache__/
 *.db
+
+# IDE and local files
+Microsoft VS Code/
+sample.csv
