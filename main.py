@@ -117,7 +117,7 @@ def detect_subscriptions():
         "total_invested": round(sum(currency_totals.values()), 2),
         "currency_totals": {
             "USD": round(currency_totals.get("$", 0), 2),
-            "INR": round(currency_totals.get("Rs.", 0), 2),
+            "INR": round(currency_totals.get("Rs.", 0) + currency_totals.get("₹", 0), 2),
             "GBP": round(currency_totals.get("£", 0), 2)
         }
     }
