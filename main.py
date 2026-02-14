@@ -61,6 +61,7 @@ class CancelRequest(BaseModel):
 class InvestmentRequest(BaseModel):
     merchant: str
     monthly_cost: float
+    currency: str = "$"
 
 # =========================================================
 # ROUTES: DETECTION
@@ -158,6 +159,7 @@ def handle_investment(data: InvestmentRequest):
         investment = Transaction(
             merchant=data.merchant,
             amount=data.monthly_cost,
+            currency=data.currency,  # Use currency from request
             date=datetime.now().strftime("%Y-%m-%d"),
             status="invested"
         )
