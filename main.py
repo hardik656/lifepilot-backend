@@ -99,6 +99,12 @@ def detect_subscriptions():
             # Get most common currency for this merchant
             most_common_currency = max(set(data["currencies"]), key=data["currencies"].count)
             
+            # Determine if this merchant has any invested transactions
+            invested_exists = db.query(Transaction).filter(
+                Transaction.merchant == merchant,
+                Transaction.status == "invested"
+            ).first() is not None
+            
             # STALE LOGIC
             is_stale = True
             
@@ -108,7 +114,8 @@ def detect_subscriptions():
                 "currency": most_common_currency,
                 "occurrences": len(data["amounts"]),
                 "last_seen_days": days_diff,
-                "is_stale": is_stale
+                "is_stale": is_stale,
+                "invested": invested_exists
             })
     db.close()
     return {
