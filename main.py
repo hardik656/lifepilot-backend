@@ -44,6 +44,7 @@ class Transaction(Base):
     currency = Column(String, default="$")
     date = Column(String, default=datetime.now().strftime("%Y-%m-%d"))
     status = Column(String, default="active")
+    cancellation_date = Column(String, default=None)
 
 Base.metadata.create_all(bind=engine)
 
@@ -147,7 +148,7 @@ def handle_cancel(data: CancelRequest):
         return {"status": "success", "message": f"Automation started for {data.merchant}"}
     return {"status": "error", "message": "Bot failed to execute"}
 
-@app.post("/subscriptions/{merchant}/cancellation-status")
+@app.put("/subscriptions/{merchant}/cancellation-status")
 def update_cancellation_status(merchant: str, data: CancellationUpdate):
     db = SessionLocal()
     try:
@@ -160,6 +161,8 @@ def update_cancellation_status(merchant: str, data: CancellationUpdate):
 
         for t in transactions:
             t.status = data.status
+            if data.cancellation_date:
+                t.cancellation_date = data.cancellation_date
 
         db.commit()
         return {"status": "success", "merchant": merchant}
