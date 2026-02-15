@@ -53,6 +53,12 @@ Base.metadata.create_all(bind=engine)
 class SMSInput(BaseModel):
     text: str
 
+from pydantic import BaseModel
+
+class CancellationUpdate(BaseModel):
+    status: str
+    cancellation_date: str | None = None
+
 class CancelRequest(BaseModel):
     merchant: str
     username: str = "user@example.com"
@@ -140,6 +146,28 @@ def handle_cancel(data: CancelRequest):
     if success:
         return {"status": "success", "message": f"Automation started for {data.merchant}"}
     return {"status": "error", "message": "Bot failed to execute"}
+
+@app.post("/subscriptions/{merchant}/cancellation-status")
+def update_cancellation_status(merchant: str, data: CancellationUpdate):
+    db = SessionLocal()
+    try:
+        transactions = db.query(Transaction).filter(
+            Transaction.merchant == merchant
+        ).all()
+
+        if not transactions:
+            return {"status": "error", "message": "Merchant not found"}
+
+        for t in transactions:
+            t.status = data.status
+
+        db.commit()
+        return {"status": "success", "merchant": merchant}
+    except Exception as e:
+        db.rollback()
+        return {"status": "error", "message": str(e)}
+    finally:
+        db.close()
 
 # =========================================================
 # ROUTES: INVESTMENT TRACKING
