@@ -54,7 +54,13 @@ Base.metadata.create_all(bind=engine)
 class SMSInput(BaseModel):
     text: str
 
-from pydantic import BaseModel
+class Brokerage(BaseModel):
+    id: str
+    name: str
+    deep_link: str
+    web_url: str
+    region: str
+    is_active: bool
 
 class CancellationUpdate(BaseModel):
     status: str
@@ -261,6 +267,37 @@ def parse_sms(data: SMSInput):
     db.commit()
     db.close()
     return {"parsed_transactions": count}
+
+@app.get("/brokerages")
+def get_brokerages():
+    """Get list of active brokerages for investment redirection"""
+    try:
+        # Mock data - in production, this would come from database
+        brokerages = [
+            {
+                "id": "zerodha",
+                "name": "Zerodha",
+                "deep_link": "kite://",
+                "web_url": "https://kite.zerodha.com/",
+                "region": "IN",
+                "is_active": True
+            },
+            {
+                "id": "groww", 
+                "name": "Groww",
+                "deep_link": "groww://",
+                "web_url": "https://groww.in/",
+                "region": "IN",
+                "is_active": True
+            }
+        ]
+        
+        # Filter only active brokerages
+        active_brokerages = [b for b in brokerages if b["is_active"]]
+        
+        return {"brokerages": active_brokerages}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
 
 @app.delete("/subscriptions/{merchant}")
 def delete_subscription(merchant: str):
