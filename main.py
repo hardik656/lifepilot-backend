@@ -71,6 +71,7 @@ class InvestmentRequest(BaseModel):
 def detect_subscriptions():
     db = SessionLocal()
     rows = db.query(Transaction).all()
+    merchant_invested = set()
     merchant_data = defaultdict(lambda: {"amounts": [], "last_date": "", "currencies": []})
     
     # Calculate total invested amount by currency
@@ -78,6 +79,7 @@ def detect_subscriptions():
     for row in rows:
         if row.status == "invested":
             currency_totals[row.currency] += row.amount
+            merchant_invested.add(row.merchant)
     
     for r in rows:
         merchant_data[r.merchant]["amounts"].append(r.amount)
@@ -99,12 +101,6 @@ def detect_subscriptions():
             # Get most common currency for this merchant
             most_common_currency = max(set(data["currencies"]), key=data["currencies"].count)
             
-            # Determine if this merchant has any invested transactions
-            invested_exists = db.query(Transaction).filter(
-                Transaction.merchant == merchant,
-                Transaction.status == "invested"
-            ).first() is not None
-            
             # STALE LOGIC
             is_stale = True
             
@@ -115,7 +111,7 @@ def detect_subscriptions():
                 "occurrences": len(data["amounts"]),
                 "last_seen_days": days_diff,
                 "is_stale": is_stale,
-                "invested": invested_exists
+                "invested": merchant in merchant_invested
             })
     db.close()
     return {
