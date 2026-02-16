@@ -130,6 +130,22 @@ def detect_subscriptions():
             # STALE LOGIC
             is_stale = True
             
+            # Determine merchant-level cancellation state
+            merchant_status = "active"
+            
+            # If any transaction for this merchant is cancelled, preserve cancelled
+            merchant_transactions = db.query(Transaction).filter(
+                Transaction.merchant == merchant
+            ).all()
+            
+            for t in merchant_transactions:
+                if t.status == "cancelled":
+                    merchant_status = "cancelled"
+                    break
+                if t.status == "charge_detected_after_cancel":
+                    merchant_status = "charge_detected_after_cancel"
+                    break
+            
             result.append({
                 "merchant": merchant,
                 "monthly_cost": round(avg_cost, 2),
@@ -137,7 +153,12 @@ def detect_subscriptions():
                 "occurrences": len(data["amounts"]),
                 "last_seen_days": days_diff,
                 "is_stale": is_stale,
-                "invested": merchant in merchant_invested
+                "invested": merchant in merchant_invested,
+                "cancellation_status": merchant_status,
+                "cancellation_date": next(
+                    (t.cancellation_date for t in merchant_transactions if t.cancellation_date),
+                    None
+                )
             })
     db.close()
     return {
