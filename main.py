@@ -8,7 +8,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from automation.cancel_bot import start_cancellation_bot
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import create_engine, Column, Integer, String, Float
+from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean
 from sqlalchemy.orm import sessionmaker, declarative_base
 from pydantic import BaseModel
 from collections import defaultdict
@@ -43,7 +43,8 @@ class Transaction(Base):
     amount = Column(Float)
     currency = Column(String, default="$")
     date = Column(String, default=datetime.now().strftime("%Y-%m-%d"))
-    status = Column(String, default="active")
+    status = Column(String, default="active")  # lifecycle only
+    is_invested = Column(Boolean, default=False)
     cancellation_date = Column(String, default=None)
 
 Base.metadata.create_all(bind=engine)
@@ -90,7 +91,7 @@ def detect_subscriptions():
     # Calculate total invested amount by currency
     currency_totals = defaultdict(float)
     for row in rows:
-        if row.status == "invested":
+        if getattr(row, "is_invested", False):
             currency_totals[row.currency] += row.amount
             merchant_invested.add(row.merchant)
     
@@ -196,13 +197,13 @@ def handle_investment(data: InvestmentRequest):
     existing = db.query(Transaction).filter(
         Transaction.merchant == data.merchant,
         Transaction.amount == data.monthly_cost,
-        Transaction.status == "active"
+        Transaction.is_invested == False
     ).first()
     
     if existing:
-        existing.status = "invested"
+        existing.is_invested = True
         db.commit()
-        print(f"✅ Updated {data.merchant} status to 'invested'")
+        print(f"✅ Updated {data.merchant} is_invested to True")
     else:
         # Create new investment record
         investment = Transaction(
@@ -210,7 +211,8 @@ def handle_investment(data: InvestmentRequest):
             amount=data.monthly_cost,
             currency=data.currency,  # Use currency from request
             date=datetime.now().strftime("%Y-%m-%d"),
-            status="invested"
+            status="active",
+            is_invested=True
         )
         db.add(investment)
         db.commit()
