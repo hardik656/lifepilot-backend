@@ -49,6 +49,17 @@ class Transaction(Base):
 
 Base.metadata.create_all(bind=engine)
 
+def ensure_is_invested_column():
+    with engine.connect() as conn:
+        result = conn.execute("PRAGMA table_info(transactions);")
+        columns = [row[1] for row in result]
+
+        if "is_invested" not in columns:
+            conn.execute("ALTER TABLE transactions ADD COLUMN is_invested BOOLEAN DEFAULT 0;")
+            print("✅ Added missing is_invested column")
+
+ensure_is_invested_column()
+
 # =========================================================
 # DATA MODELS
 # =========================================================
