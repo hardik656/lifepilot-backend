@@ -8,7 +8,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from automation.cancel_bot import start_cancellation_bot
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean
+from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, text
 from sqlalchemy.orm import sessionmaker, declarative_base
 from pydantic import BaseModel
 from collections import defaultdict
@@ -51,11 +51,11 @@ Base.metadata.create_all(bind=engine)
 
 def ensure_is_invested_column():
     with engine.connect() as conn:
-        result = conn.execute("PRAGMA table_info(transactions);")
+        result = conn.execute(text("PRAGMA table_info(transactions);"))
         columns = [row[1] for row in result]
 
         if "is_invested" not in columns:
-            conn.execute("ALTER TABLE transactions ADD COLUMN is_invested BOOLEAN DEFAULT 0;")
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN is_invested BOOLEAN DEFAULT 0;"))
             print("✅ Added missing is_invested column")
 
 ensure_is_invested_column()
