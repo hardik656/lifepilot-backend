@@ -246,8 +246,6 @@ def handle_investment(data: InvestmentRequest):
     
     db.close()
     return {"status": "success", "message": f"Investment recorded for {data.merchant}"}
-
-# =========================================================
 # ROUTES: UTILS
 # =========================================================
 
@@ -259,60 +257,82 @@ def parse_sms(data: SMSInput):
     current_date = datetime.now().strftime("%Y-%m-%d")
 
     for line in lines:
-        if not line.strip(): continue
-        # Dynamic currency detection: Capture currency prefix and amount
-        currency_match = re.search(r"(Rs\.?|\$|£|€)\s?(\d+(?:\.\d{1,2})?)", line)
-        amount_match = re.search(r"\$?\s?(\d+(?:\.\d{1,2})?)", line)  # Fallback
-        # 🧹 IMPROVED REGEX: Captures only the first word after the trigger for cleaner UI
-        merchant_match = re.search(r"(?:for|at|to|[:]|spent)\s+([A-Za-z0-9&\s]+)", line, re.IGNORECASE)
-
-        if currency_match:
-            amount = float(currency_match.group(2))
-            currency = currency_match.group(1)
-            # Normalize Currency Before Saving
-            if currency == 'Rs' or currency == 'Rs.':
-                currency = 'Rs.'
-            elif currency == '₹':
-                currency = '₹'
-            elif currency == '$' or currency == 'USD':
-                currency = '$'
-        elif amount_match:
-            amount = float(amount_match.group(1))
-            currency = "$"  # Default currency
-        else:
+        if not line.strip():
             continue
-            
-        # 🚀 DATA CLEANUP: Extracts only the core name and capitalizes it (e.g., "NETFLIX" -> "Netflix")
-        raw_merchant = merchant_match.group(1).strip() if merchant_match else "Unknown"
-        merchant = raw_merchant.title() 
-        
-        # Harden SMS Duplicate Detection (24h Protection)
+
+        # 1️⃣ Currency + Amount Detection
+        currency_match = re.search(r"(Rs\.?|₹|\$|£)\s?(\d+(?:\.\d{1,2})?)", line)
+        if not currency_match:
+            continue
+
+        currency = currency_match.group(1)
+        amount = float(currency_match.group(2))
+
+        # Normalize currency
+        if currency in ["Rs", "Rs."]:
+            currency = "Rs."
+        elif currency == "₹":
+            currency = "₹"
+        elif currency == "$":
+            currency = "$"
+
+        # 2️⃣ Smart Merchant Extraction
+        merchant = None
+
+        # Try common merchant patterns
+        patterns = [
+            r"(?:at|to|for)\s+([A-Za-z0-9&\s]+)",
+            r"VPA\s+([A-Za-z0-9@\.]+)",
+            r"from\s+([A-Za-z0-9&\s]+)"
+        ]
+
+        for pattern in patterns:
+            match = re.search(pattern, line, re.IGNORECASE)
+            if match:
+                merchant = match.group(1).strip()
+                break
+
+        # Fallback: detect common Indian banks
+        if not merchant:
+            bank_match = re.search(r"(Kotak|HDFC|ICICI|SBI|Axis)", line, re.IGNORECASE)
+            if bank_match:
+                merchant = bank_match.group(1)
+
+        # Final fallback
+        if not merchant:
+            merchant = "Transaction"
+
+        # Clean merchant name
+        merchant = merchant.split()[0].capitalize()
+
+        # 3️⃣ 24-hour Duplicate Protection
         yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+
         recent_duplicate = db.query(Transaction).filter(
-            Transaction.merchant == merchant, 
+            Transaction.merchant == merchant,
             Transaction.amount == amount,
             Transaction.date >= yesterday
         ).first()
 
         if recent_duplicate:
-            continue  # Skip insertion for recent duplicates
-        
-        existing = db.query(Transaction).filter(
-            Transaction.merchant == merchant, 
-            Transaction.amount == amount,
-            Transaction.date == current_date
-        ).first()
+            continue
 
-        if not existing:
-            t = Transaction(merchant=merchant, amount=amount, currency=currency, date=current_date, status="active")
-            db.add(t)
-            count += 1
+        # Insert transaction
+        t = Transaction(
+            merchant=merchant,
+            amount=amount,
+            currency=currency,
+            date=current_date,
+            status="active"
+        )
+
+        db.add(t)
+        count += 1
+
     db.commit()
     db.close()
-    return {
-        "parsed_transactions": count,
-        "merchant": merchant if count > 0 else None
-    }
+
+    return {"parsed_transactions": count}
 
 @app.get("/brokerages")
 def get_brokerages():
