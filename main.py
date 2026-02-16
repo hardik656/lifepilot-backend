@@ -118,7 +118,8 @@ def detect_subscriptions():
     
     for merchant, data in merchant_data.items():
         if len(data["amounts"]) >= 1:
-            avg_cost = sum(data["amounts"]) / len(data["amounts"])
+            # Use most recent transaction amount instead of average
+            avg_cost = data["amounts"][-1]
             total_savings_sum += avg_cost
             last_dt = datetime.strptime(data["last_date"], "%Y-%m-%d")
             days_diff = (today - last_dt).days
