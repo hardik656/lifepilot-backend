@@ -305,18 +305,6 @@ def parse_sms(data: SMSInput):
         # Clean merchant name
         merchant = merchant.split()[0].capitalize()
 
-        # 3️⃣ 24-hour Duplicate Protection
-        yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
-
-        recent_duplicate = db.query(Transaction).filter(
-            Transaction.merchant == merchant,
-            Transaction.amount == amount,
-            Transaction.date >= yesterday
-        ).first()
-
-        if recent_duplicate:
-            continue
-
         # Insert transaction
         t = Transaction(
             merchant=merchant,
