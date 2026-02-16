@@ -12,7 +12,7 @@ from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, t
 from sqlalchemy.orm import sessionmaker, declarative_base
 from pydantic import BaseModel
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 import csv
 import re
 
@@ -202,7 +202,21 @@ def handle_investment(data: InvestmentRequest):
     """
     print(f"🏆 Investment: Received request to invest {data.merchant} for ${data.monthly_cost}")
     
+    # Add Invalid Amount Guard
+    if data.monthly_cost <= 0:
+        return {"status": "error", "message": "Invalid investment amount"}
+    
     db = SessionLocal()
+    
+    # Prevent Duplicate Investments
+    already_invested = db.query(Transaction).filter(
+        Transaction.merchant == data.merchant,
+        Transaction.amount == data.monthly_cost,
+        Transaction.is_invested == True
+    ).first()
+    
+    if already_invested:
+        return {"status": "already_invested", "message": "Subscription already invested"}
     
     # Update or create investment record
     existing = db.query(Transaction).filter(
@@ -254,9 +268,13 @@ def parse_sms(data: SMSInput):
         if currency_match:
             amount = float(currency_match.group(2))
             currency = currency_match.group(1)
-            # Normalize currency symbols
+            # Normalize Currency Before Saving
             if currency == 'Rs' or currency == 'Rs.':
                 currency = 'Rs.'
+            elif currency == '₹':
+                currency = '₹'
+            elif currency == '$' or currency == 'USD':
+                currency = '$'
         elif amount_match:
             amount = float(amount_match.group(1))
             currency = "$"  # Default currency
@@ -266,6 +284,17 @@ def parse_sms(data: SMSInput):
         # 🚀 DATA CLEANUP: Extracts only the core name and capitalizes it (e.g., "NETFLIX" -> "Netflix")
         raw_merchant = merchant_match.group(1).strip() if merchant_match else "unknown"
         merchant = raw_merchant.split()[0].capitalize() 
+        
+        # Harden SMS Duplicate Detection (24h Protection)
+        yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+        recent_duplicate = db.query(Transaction).filter(
+            Transaction.merchant == merchant, 
+            Transaction.amount == amount,
+            Transaction.date >= yesterday
+        ).first()
+
+        if recent_duplicate:
+            continue  # Skip insertion for recent duplicates
         
         existing = db.query(Transaction).filter(
             Transaction.merchant == merchant, 
