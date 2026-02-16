@@ -277,6 +277,7 @@ def get_brokerages():
             {
                 "id": "zerodha",
                 "name": "Zerodha",
+                "type": "Discount Broker",
                 "deep_link": "kite://",
                 "web_url": "https://kite.zerodha.com/",
                 "region": "IN",
@@ -285,6 +286,7 @@ def get_brokerages():
             {
                 "id": "groww", 
                 "name": "Groww",
+                "type": "Investment Platform",
                 "deep_link": "groww://",
                 "web_url": "https://groww.in/",
                 "region": "IN",
