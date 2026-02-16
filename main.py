@@ -264,7 +264,7 @@ def parse_sms(data: SMSInput):
         currency_match = re.search(r"(Rs\.?|\$|£|€)\s?(\d+(?:\.\d{1,2})?)", line)
         amount_match = re.search(r"\$?\s?(\d+(?:\.\d{1,2})?)", line)  # Fallback
         # 🧹 IMPROVED REGEX: Captures only the first word after the trigger for cleaner UI
-        merchant_match = re.search(r"(?:for|at|to|[:]|spent)\s+([A-Za-z]+)", line, re.IGNORECASE)
+        merchant_match = re.search(r"(?:for|at|to|[:]|spent)\s+([A-Za-z0-9&\s]+)", line, re.IGNORECASE)
 
         if currency_match:
             amount = float(currency_match.group(2))
@@ -283,8 +283,8 @@ def parse_sms(data: SMSInput):
             continue
             
         # 🚀 DATA CLEANUP: Extracts only the core name and capitalizes it (e.g., "NETFLIX" -> "Netflix")
-        raw_merchant = merchant_match.group(1).strip() if merchant_match else "unknown"
-        merchant = raw_merchant.split()[0].capitalize() 
+        raw_merchant = merchant_match.group(1).strip() if merchant_match else "Unknown"
+        merchant = raw_merchant.title() 
         
         # Harden SMS Duplicate Detection (24h Protection)
         yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
@@ -309,7 +309,10 @@ def parse_sms(data: SMSInput):
             count += 1
     db.commit()
     db.close()
-    return {"parsed_transactions": count}
+    return {
+        "parsed_transactions": count,
+        "merchant": merchant if count > 0 else None
+    }
 
 @app.get("/brokerages")
 def get_brokerages():
