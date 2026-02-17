@@ -245,20 +245,26 @@ def print_heatmap(signals):
 # =========================================================
 # 🚀 WORKER MAIN LOOP
 # =========================================================
+# =========================================================
+# 🚀 WORKER STARTUP
+# =========================================================
+
 if __name__ == "__main__":
-    print("🤖 Starting Trading Worker...")
-    
+    print("🚀 Trading Worker Starting...")
+
     try:
         # Initial training
         retrain_models()
-        
-        # Schedule hourly scans and weekly retraining
+
+        # Schedule tasks
         schedule.every().hour.do(main_cycle)
         schedule.every().sunday.at("00:00").do(retrain_models)
-        
-        # Run first scan immediately
+
+        # Run once immediately
         main_cycle()
-        
+
+        print("✅ Worker running. Scheduler active.")
+
         # Main scheduler loop
         while True:
             try:
@@ -269,8 +275,9 @@ if __name__ == "__main__":
                 break
             except Exception as e:
                 print(f"❌ Scheduler error: {e}")
-                time.sleep(10)  # Wait before retry
-                
+                time.sleep(10)
+
     except Exception as e:
         print(f"❌ Fatal error in Trading Worker: {e}")
-        time.sleep(30)  # Wait before possible restart
+        time.sleep(30)
+# Wait before possible restart
