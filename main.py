@@ -511,7 +511,7 @@ def market_scan():
                 continue
 
             df = raw[s].dropna()
-            if len(df) < 200:
+            if len(df) < 20:
                 continue
 
             if isinstance(df.columns, pd.MultiIndex):
