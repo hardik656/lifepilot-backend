@@ -1,9 +1,9 @@
 # =========================================================
 # 🚀 LifePilot — AI Pilot Engine (Detection + Automation)
 # =========================================================
-import pandas as pd
 import sys
 import os
+import pandas as pd
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from automation.cancel_bot import start_cancellation_bot
 from fastapi import FastAPI, UploadFile, File
