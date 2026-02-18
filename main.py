@@ -12,7 +12,7 @@ from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, t
 from sqlalchemy.orm import sessionmaker, declarative_base
 from pydantic import BaseModel
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timezone
 import csv
 import re
 
@@ -495,7 +495,8 @@ def market_scan():
 
     import yfinance as yf
     from collections import defaultdict
-    from datetime import datetime
+    from datetime import datetime, timezone
+
 
     try:
         tickers = [
@@ -579,7 +580,7 @@ def market_scan():
         )[:3]
 
         return {
-            "timestamp": datetime.now(datetime.UTC).isoformat(),
+           "timestamp": datetime.now(timezone.utc).isoformat(),
             "market_regime": regime,
             "strongest_sector": top_sector,
             "sector_scores": sector_avg,
