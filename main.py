@@ -101,9 +101,20 @@ def detect_subscriptions():
     
     # Calculate total invested amount by currency
     currency_totals = defaultdict(float)
+
     for row in rows:
         if getattr(row, "is_invested", False):
-            currency_totals[row.currency] += row.amount
+            currency_key = row.currency
+
+            # Normalize currency to unified buckets
+            if currency_key in ["$", "USD"]:
+                currency_key = "USD"
+            elif currency_key in ["₹", "Rs.", "INR"]:
+                currency_key = "INR"
+            elif currency_key in ["£", "GBP"]:
+                currency_key = "GBP"
+
+            currency_totals[currency_key] += row.amount
             merchant_invested.add(row.merchant)
     
     # ✅ ONLY INCLUDE ACTIVE TRANSACTIONS IN AGGREGATION
@@ -151,14 +162,18 @@ def detect_subscriptions():
                 Transaction.merchant == merchant
             ).all()
             
-            for t in merchant_transactions:
-                if t.status == "charge_detected_after_cancel":
-                    merchant_status = "charge_detected_after_cancel"
-                    break
-                if t.status == "cancelled":
-                    merchant_status = "cancelled"
+            statuses = {t.status for t in merchant_transactions}
+
+            if "charge_detected_after_cancel" in statuses:
+                merchant_status = "charge_detected_after_cancel"
+            elif "cancellation_requested" in statuses:
+                merchant_status = "cancellation_requested"
+            elif "cancelled" in statuses:
+                merchant_status = "cancelled"
+            else:
+                merchant_status = "active"
             
-            duplicate_flag = bool(occurrences > 1 and merchant_status == "active")
+            duplicate_flag = occurrences > 1
             
             result.append({
                 "merchant": merchant,
@@ -183,9 +198,9 @@ def detect_subscriptions():
         "total_savings": round(total_savings_sum, 2), 
         "total_invested": round(sum(currency_totals.values()), 2),
         "currency_totals": {
-            "USD": round(currency_totals.get("$", 0), 2),
-            "INR": round(currency_totals.get("Rs.", 0) + currency_totals.get("₹", 0), 2),
-            "GBP": round(currency_totals.get("£", 0), 2)
+            "USD": round(currency_totals.get("USD", 0), 2),
+            "INR": round(currency_totals.get("INR", 0), 2),
+            "GBP": round(currency_totals.get("GBP", 0), 2)
         }
     }
 
@@ -250,7 +265,8 @@ def handle_investment(data: InvestmentRequest):
     # Find all non-invested rows for this merchant
     non_invested_rows = db.query(Transaction).filter(
         Transaction.merchant == data.merchant,
-        Transaction.is_invested == False
+        Transaction.is_invested == False,
+        Transaction.status == "active"
     ).all()
     
     print(f"📊 Found {len(non_invested_rows)} non-invested rows for {data.merchant}")
@@ -263,7 +279,9 @@ def handle_investment(data: InvestmentRequest):
         
         db.commit()
         print(f"✅ Updated {len(non_invested_rows)} rows to invested for {data.merchant}")
-    else:
+    elif not db.query(Transaction).filter(
+        Transaction.merchant == data.merchant
+    ).first():
         # Create ONE new investment record
         print(f"➕ No existing rows found. Creating new investment record for {data.merchant}")
         investment = Transaction(
@@ -312,12 +330,12 @@ def parse_sms(data: SMSInput):
         amount = float(currency_match.group(2))
 
         # Normalize currency
-        if currency in ["Rs", "Rs."]:
-            currency = "Rs."
-        elif currency == "₹":
-            currency = "₹"
+        if currency in ["Rs", "Rs.", "₹"]:
+            currency = "INR"
         elif currency == "$":
-            currency = "$"
+            currency = "USD"
+        elif currency == "£":
+            currency = "GBP"
 
         # 2️⃣ Smart Merchant Extraction
         merchant = None
@@ -642,5 +660,6 @@ def cancel_subscription_instance(transaction_id: int):
         return {"error": str(e)}
     finally:
         db.close()
+
 
 
