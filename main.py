@@ -125,7 +125,7 @@ def detect_subscriptions():
     for merchant, data in merchant_data.items():
         if len(data["amounts"]) >= 1:
             occurrences = len(data["amounts"])
-            monthly_cost = sum(data["amounts"])
+            monthly_cost = data["amounts"][-1]  # Latest transaction amount, not sum
 
             total_savings_sum += monthly_cost
             last_dt = datetime.strptime(data["last_date"], "%Y-%m-%d")
@@ -135,6 +135,13 @@ def detect_subscriptions():
                 set(data["currencies"]),
                 key=data["currencies"].count
             )
+            
+            # Normalize currency symbols
+            normalized_currency = most_common_currency
+            if most_common_currency in ["₹", "Rs."]:
+                normalized_currency = "INR"
+            elif most_common_currency == "$":
+                normalized_currency = "USD"
             
             is_stale = True
             
@@ -151,17 +158,17 @@ def detect_subscriptions():
                 if t.status == "cancelled":
                     merchant_status = "cancelled"
             
-            duplicate_flag = occurrences > 1 and merchant_status == "active"
+            duplicate_flag = bool(occurrences > 1 and merchant_status == "active")
             
             result.append({
                 "merchant": merchant,
                 "monthly_cost": round(monthly_cost, 2),
-                "currency": most_common_currency,
+                "currency": normalized_currency,
                 "occurrences": occurrences,
                 "last_seen_days": days_diff,
                 "is_stale": is_stale,
-                "invested": merchant in merchant_invested,
-                "cancellation_status": merchant_status,
+                "invested": bool(merchant in merchant_invested),
+                "cancellation_status": merchant_status or "active",
                 "cancellation_date": next(
                     (t.cancellation_date for t in merchant_transactions if t.cancellation_date),
                     None
@@ -572,7 +579,7 @@ def market_scan():
         )[:3]
 
         return {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(datetime.UTC).isoformat(),
             "market_regime": regime,
             "strongest_sector": top_sector,
             "sector_scores": sector_avg,
@@ -612,8 +619,8 @@ def get_subscription_instances(merchant: str):
 
 @app.post("/cancel-instance/{transaction_id}")
 def cancel_subscription_instance(transaction_id: int):
-    print(f"===== CANCEL INSTANCE HIT for ID {transaction_id} - Merchant: {db.query(Transaction).filter(Transaction.id == transaction_id).first().merchant if db.query(Transaction).filter(Transaction.id == transaction_id).first() else 'NOT FOUND'} =====")
     db = SessionLocal()
+    print(f"===== CANCEL INSTANCE HIT for ID {transaction_id} - Merchant: {db.query(Transaction).filter(Transaction.id == transaction_id).first().merchant if db.query(Transaction).filter(Transaction.id == transaction_id).first() else 'NOT FOUND'} =====")
     try:
         instance = db.query(Transaction).filter(Transaction.id == transaction_id).first()
         
