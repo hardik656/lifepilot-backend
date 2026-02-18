@@ -240,40 +240,43 @@ def handle_investment(data: InvestmentRequest):
     
     db = SessionLocal()
     
-    # Prevent Duplicate Investments
-    already_invested = db.query(Transaction).filter(
+    # Find all non-invested rows for this merchant
+    non_invested_rows = db.query(Transaction).filter(
         Transaction.merchant == data.merchant,
-        Transaction.amount == data.monthly_cost,
-        Transaction.is_invested == True
-    ).first()
-    
-    if already_invested:
-        return {"status": "already_invested", "message": "Subscription already invested"}
-    
-    # Update or create investment record
-    existing = db.query(Transaction).filter(
-        Transaction.merchant == data.merchant,
-        Transaction.amount == data.monthly_cost,
         Transaction.is_invested == False
-    ).first()
+    ).all()
     
-    if existing:
-        existing.is_invested = True
+    print(f"📊 Found {len(non_invested_rows)} non-invested rows for {data.merchant}")
+    
+    if non_invested_rows:
+        # Update ALL non-invested rows to is_invested=True
+        for row in non_invested_rows:
+            row.is_invested = True
+            print(f"📝 Setting is_invested=True on row ID {row.id} (amount: {row.amount})")
+        
         db.commit()
-        print(f"✅ Updated {data.merchant} is_invested to True")
+        print(f"✅ Updated {len(non_invested_rows)} rows to invested for {data.merchant}")
     else:
-        # Create new investment record
+        # Create ONE new investment record
+        print(f"➕ No existing rows found. Creating new investment record for {data.merchant}")
         investment = Transaction(
             merchant=data.merchant,
             amount=data.monthly_cost,
-            currency=data.currency,  # Use currency from request
+            currency=data.currency,
             date=datetime.now().strftime("%Y-%m-%d"),
             status="active",
             is_invested=True
         )
         db.add(investment)
         db.commit()
-        print(f"✅ Created investment record for {data.merchant}")
+        print(f"✅ Created new investment record for {data.merchant}")
+    
+    # Verify final count
+    invested_count = db.query(Transaction).filter(
+        Transaction.merchant == data.merchant,
+        Transaction.is_invested == True
+    ).count()
+    print(f"📊 FINAL: {invested_count} invested rows for {data.merchant}")
     
     db.close()
     return {"status": "success", "message": f"Investment recorded for {data.merchant}"}
@@ -609,6 +612,7 @@ def get_subscription_instances(merchant: str):
 
 @app.post("/cancel-instance/{transaction_id}")
 def cancel_subscription_instance(transaction_id: int):
+    print(f"===== CANCEL INSTANCE HIT for ID {transaction_id} - Merchant: {db.query(Transaction).filter(Transaction.id == transaction_id).first().merchant if db.query(Transaction).filter(Transaction.id == transaction_id).first() else 'NOT FOUND'} =====")
     db = SessionLocal()
     try:
         instance = db.query(Transaction).filter(Transaction.id == transaction_id).first()
@@ -628,3 +632,4 @@ def cancel_subscription_instance(transaction_id: int):
         return {"error": str(e)}
     finally:
         db.close()
+
