@@ -106,11 +106,17 @@ def detect_subscriptions():
             currency_totals[row.currency] += row.amount
             merchant_invested.add(row.merchant)
     
+    # ✅ ONLY INCLUDE ACTIVE TRANSACTIONS IN AGGREGATION
     for r in rows:
-        merchant_data[r.merchant]["amounts"].append(r.amount)
-        merchant_data[r.merchant]["currencies"].append(r.currency)
-        if not merchant_data[r.merchant]["last_date"] or r.date > merchant_data[r.merchant]["last_date"]:
-            merchant_data[r.merchant]["last_date"] = r.date
+        if r.status == "active":
+            merchant_data[r.merchant]["amounts"].append(r.amount)
+            merchant_data[r.merchant]["currencies"].append(r.currency)
+
+            if (
+                not merchant_data[r.merchant]["last_date"]
+                or r.date > merchant_data[r.merchant]["last_date"]
+            ):
+                merchant_data[r.merchant]["last_date"] = r.date
     
     result = []
     total_savings_sum = 0
@@ -118,7 +124,6 @@ def detect_subscriptions():
     
     for merchant, data in merchant_data.items():
         if len(data["amounts"]) >= 1:
-            # Total monthly cost across all active transactions
             occurrences = len(data["amounts"])
             monthly_cost = sum(data["amounts"])
 
@@ -126,29 +131,26 @@ def detect_subscriptions():
             last_dt = datetime.strptime(data["last_date"], "%Y-%m-%d")
             days_diff = (today - last_dt).days
             
-            # Get most common currency for this merchant
-            most_common_currency = max(set(data["currencies"]), key=data["currencies"].count)
+            most_common_currency = max(
+                set(data["currencies"]),
+                key=data["currencies"].count
+            )
             
-            # STALE LOGIC
             is_stale = True
             
-            # Determine merchant-level cancellation state
             merchant_status = "active"
             
-            # If any transaction for this merchant is cancelled, preserve cancelled
             merchant_transactions = db.query(Transaction).filter(
                 Transaction.merchant == merchant
             ).all()
             
             for t in merchant_transactions:
-                if t.status == "cancelled":
-                    merchant_status = "cancelled"
-                    break
                 if t.status == "charge_detected_after_cancel":
                     merchant_status = "charge_detected_after_cancel"
                     break
+                if t.status == "cancelled":
+                    merchant_status = "cancelled"
             
-            # Determine duplicate flag
             duplicate_flag = occurrences > 1 and merchant_status == "active"
             
             result.append({
@@ -167,6 +169,7 @@ def detect_subscriptions():
                 "duplicate_flag": duplicate_flag,
                 "duplicate_count": occurrences
             })
+
     db.close()
     return {
         "subscriptions": result, 
