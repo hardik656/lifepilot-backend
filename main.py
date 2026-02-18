@@ -146,11 +146,15 @@ def detect_subscriptions():
                     merchant_status = "charge_detected_after_cancel"
                     break
             
+            # Determine duplicate flag
+            occurrences = len(data["amounts"])
+            duplicate_flag = occurrences > 1 and merchant_status == "active"
+            
             result.append({
                 "merchant": merchant,
                 "monthly_cost": round(avg_cost, 2),
                 "currency": most_common_currency,
-                "occurrences": len(data["amounts"]),
+                "occurrences": occurrences,
                 "last_seen_days": days_diff,
                 "is_stale": is_stale,
                 "invested": merchant in merchant_invested,
@@ -158,7 +162,9 @@ def detect_subscriptions():
                 "cancellation_date": next(
                     (t.cancellation_date for t in merchant_transactions if t.cancellation_date),
                     None
-                )
+                ),
+                "duplicate_flag": duplicate_flag,
+                "duplicate_count": occurrences
             })
     db.close()
     return {
