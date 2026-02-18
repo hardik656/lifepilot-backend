@@ -118,9 +118,11 @@ def detect_subscriptions():
     
     for merchant, data in merchant_data.items():
         if len(data["amounts"]) >= 1:
-            # Use most recent transaction amount instead of average
-            avg_cost = data["amounts"][-1]
-            total_savings_sum += avg_cost
+            # Total monthly cost across all active transactions
+            occurrences = len(data["amounts"])
+            monthly_cost = sum(data["amounts"])
+
+            total_savings_sum += monthly_cost
             last_dt = datetime.strptime(data["last_date"], "%Y-%m-%d")
             days_diff = (today - last_dt).days
             
@@ -147,12 +149,11 @@ def detect_subscriptions():
                     break
             
             # Determine duplicate flag
-            occurrences = len(data["amounts"])
             duplicate_flag = occurrences > 1 and merchant_status == "active"
             
             result.append({
                 "merchant": merchant,
-                "monthly_cost": round(avg_cost, 2),
+                "monthly_cost": round(monthly_cost, 2),
                 "currency": most_common_currency,
                 "occurrences": occurrences,
                 "last_seen_days": days_diff,
