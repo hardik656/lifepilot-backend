@@ -296,7 +296,7 @@ def handle_investment(data: InvestmentRequest):
 def parse_sms(data: SMSInput):
     db = SessionLocal()
     lines = data.text.splitlines()
-    count = 0
+    parsed_transactions = []
     current_date = datetime.now().strftime("%Y-%m-%d")
 
     for line in lines:
@@ -348,28 +348,32 @@ def parse_sms(data: SMSInput):
         # Clean merchant name
         merchant = merchant.split()[0].capitalize()
 
-        # Insert transaction
+        # Add to parsed transactions array
+        parsed_transactions.append({
+            "merchant": merchant,
+            "amount": amount,
+            "currency": currency,
+            "date": current_date
+        })
+
+    # Insert all parsed transactions into database
+    for transaction in parsed_transactions:
         t = Transaction(
-            merchant=merchant,
-            amount=amount,
-            currency=currency,
-            date=current_date,
+            merchant=transaction["merchant"],
+            amount=transaction["amount"],
+            currency=transaction["currency"],
+            date=transaction["date"],
             status="active"
         )
-
         db.add(t)
-        count += 1
 
     db.commit()
     db.close()
-
-    return {"parsed_transactions": count}
+    return {"parsed_transactions": parsed_transactions}
 
 @app.get("/brokerages")
 def get_brokerages():
-    """Get list of active brokerages for investment redirection"""
     try:
-        # Mock data - in production, this would come from database
         brokerages = [
             {
                 "id": "zerodha",
@@ -381,7 +385,7 @@ def get_brokerages():
                 "is_active": True
             },
             {
-                "id": "groww", 
+                "id": "groww",
                 "name": "Groww",
                 "type": "Investment Platform",
                 "deep_link": "groww://",
@@ -390,11 +394,10 @@ def get_brokerages():
                 "is_active": True
             }
         ]
-        
-        # Filter only active brokerages
+
         active_brokerages = [b for b in brokerages if b["is_active"]]
-        
         return {"brokerages": active_brokerages}
+
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
@@ -495,8 +498,7 @@ def market_scan():
 
     import yfinance as yf
     from collections import defaultdict
-    from datetime import datetime, timezone
-
+    from datetime import datetime
 
     try:
         tickers = [
@@ -580,7 +582,7 @@ def market_scan():
         )[:3]
 
         return {
-           "timestamp": datetime.now(timezone.utc).isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "market_regime": regime,
             "strongest_sector": top_sector,
             "sector_scores": sector_avg,
@@ -640,4 +642,5 @@ def cancel_subscription_instance(transaction_id: int):
         return {"error": str(e)}
     finally:
         db.close()
+
 
