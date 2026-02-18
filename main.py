@@ -578,3 +578,50 @@ def market_scan():
 
     except Exception as e:
         return {"error": str(e)}
+
+# =========================================================
+# ROUTES: SUBSCRIPTION INSTANCES
+# =========================================================
+
+@app.get("/subscriptions/{merchant}/instances")
+def get_subscription_instances(merchant: str):
+    db = SessionLocal()
+    try:
+        instances = db.query(Transaction).filter(
+            Transaction.merchant == merchant,
+            Transaction.status == "active"
+        ).all()
+        
+        return [
+            {
+                "id": instance.id,
+                "amount": instance.amount,
+                "currency": instance.currency,
+                "date": instance.date
+            }
+            for instance in instances
+        ]
+    finally:
+        db.close()
+
+@app.post("/cancel-instance/{transaction_id}")
+def cancel_subscription_instance(transaction_id: int):
+    db = SessionLocal()
+    try:
+        instance = db.query(Transaction).filter(Transaction.id == transaction_id).first()
+        
+        if not instance:
+            return {"error": "Transaction not found"}
+        
+        if instance.status == "active":
+            instance.status = "cancelled"
+            instance.cancellation_date = datetime.now().strftime("%Y-%m-%d")
+            db.commit()
+            return {"success": True, "message": "Instance cancelled successfully"}
+        else:
+            return {"error": "Instance is not active"}
+    except Exception as e:
+        db.rollback()
+        return {"error": str(e)}
+    finally:
+        db.close()
