@@ -350,37 +350,80 @@ def parse_sms(data: SMSInput):
         # 2️⃣ Smart Merchant Extraction
         merchant = None
 
-        # Try common merchant patterns
-        patterns = [
-            r"(?:at|to|for)\s+([A-Za-z0-9&\s]+)",
-            r"VPA\s+([A-Za-z0-9@\.]+)",
-            r"from\s+([A-Za-z0-9&\s]+)"
-        ]
+        # PRIORITY 1: UPI VPA extraction — most reliable for Indian SMS
+        # Matches: "to payzomato@hdfcbank" or "VPA payzomato@hdfcbank"
+        vpa_match = re.search(r"(?:to|VPA)\s+([A-Za-z0-9]+)@[A-Za-z0-9]+", line, re.IGNORECASE)
+        if vpa_match:
+            vpa_handle = vpa_match.group(1).lower()
 
-        for pattern in patterns:
-            match = re.search(pattern, line, re.IGNORECASE)
-            if match:
-                merchant = match.group(1).strip()
-                break
+            # Known VPA prefix → clean merchant name mapping
+            VPA_MAP = {
+                "payzomato": "Zomato",
+                "zomato": "Zomato",
+                "netflix": "Netflix",
+                "hotstar": "Hotstar",
+                "spotify": "Spotify",
+                "amazon": "Amazon",
+                "primevideo": "Amazon",
+                "applecom": "Apple",
+                "apple": "Apple",
+                "google": "Google",
+                "youtube": "YouTube",
+                "swiggy": "Swiggy",
+                "ola": "Ola",
+                "uber": "Uber",
+                "gym": "Gym",
+                "zerodha": "Zerodha",
+                "groww": "Groww",
+            }
 
-        # Fallback: detect common Indian banks
+            # Check known map first
+            matched = False
+            for key, name in VPA_MAP.items():
+                if key in vpa_handle:
+                    merchant = name
+                    matched = True
+                    break
+
+            # If not in map, clean the VPA handle
+            if not matched:
+                # Strip common prefixes: pay, sub, bills, upi, auto
+                cleaned = re.sub(r"^(pay|sub|bills?|upi|auto)", "", vpa_handle)
+                # Strip trailing numbers
+                cleaned = re.sub(r"\d+$", "", cleaned)
+                if len(cleaned) >= 3:
+                    merchant = cleaned.capitalize()
+
+        # PRIORITY 2: Common preposition patterns
         if not merchant:
-            bank_match = re.search(r"(Kotak|HDFC|ICICI|SBI|Axis)", line, re.IGNORECASE)
-            if bank_match:
-                merchant = bank_match.group(1)
+            patterns = [
+                r"(?:at|to|for|on)\s+([A-Za-z][A-Za-z0-9&\s]{2,}?)(?:\s+via|\s+on|\s+ref|\.|\,|$)",
+                r"from\s+([A-Za-z][A-Za-z0-9&\s]{2,}?)(?:\s+via|\s+on|\s+ref|\.|\,|$)",
+            ]
+            for pattern in patterns:
+                match = re.search(pattern, line, re.IGNORECASE)
+                if match:
+                    merchant = match.group(1).strip()
+                    break
 
-        # Final fallback (use cleaned text instead of generic bucket)
+        # PRIORITY 3: Skip personal transfers (names with numbers like pradeep4221)
+        # If merchant looks like a personal UPI ID, discard it
+        if merchant and re.search(r"\d{3,}", merchant):
+            merchant = None
+
+        # PRIORITY 4: Bank name fallback — skip, these are not merchants
+        # Don't use Kotak/HDFC as merchant names
+
+        # PRIORITY 5: Final fallback
         if not merchant:
-            words = re.findall(r"[A-Za-z]{3,}", line)
-            if words:
-                merchant = words[0].capitalize()
-            else:
-                merchant = "Unknown"
+            merchant = "Unknown"
 
-        # Clean merchant name
+        # Clean merchant name — remove noise words
         BANK_KEYWORDS = ['spent', 'debit', 'debited', 'payment', 'transaction',
                          'transfer', 'charged', 'purchase', 'paid', 'sent',
-                         'alert', 'info', 'dear', 'your', 'acct', 'account']
+                         'alert', 'info', 'dear', 'your', 'acct', 'account',
+                         'kotak', 'hdfc', 'icici', 'sbi', 'axis', 'bank',
+                         'not', 'you', 'upi', 'ref', 'from', 'via']
         words = [w for w in merchant.split() if w.lower() not in BANK_KEYWORDS]
         merchant = words[0].capitalize() if words else "Unknown"
 
