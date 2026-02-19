@@ -96,6 +96,7 @@ def detect_subscriptions():
     rows = db.query(Transaction).all()
     merchant_invested = set()
     merchant_data = defaultdict(lambda: {"amounts": [], "last_date": "", "currencies": []})
+    merchant_total_counts = defaultdict(int)
     
     # Calculate total invested amount by currency
     currency_totals = defaultdict(float)
@@ -117,6 +118,11 @@ def detect_subscriptions():
     
     # ✅ ONLY INCLUDE ACTIVE TRANSACTIONS IN AGGREGATION
     for r in rows:
+        # Track total historical transactions (active + cancelled)
+        merchant_total_counts[r.merchant] += 1
+
+        # Keep existing invested currency logic unchanged above this block
+
         if r.status == "active":
             merchant_data[r.merchant]["amounts"].append(r.amount)
             merchant_data[r.merchant]["currencies"].append(r.currency)
@@ -134,6 +140,8 @@ def detect_subscriptions():
     for merchant, data in merchant_data.items():
         if len(data["amounts"]) >= 1:
             occurrences = len(data["amounts"])
+            active_count = occurrences
+            total_detected = merchant_total_counts[merchant]
             monthly_cost = data["amounts"][-1]  # Latest transaction amount, not sum
 
             total_savings_sum += monthly_cost
@@ -171,7 +179,7 @@ def detect_subscriptions():
             else:
                 merchant_status = "active"
             
-            duplicate_flag = occurrences > 1
+            duplicate_flag = active_count > 1
             
             result.append({
                 "merchant": merchant,
@@ -187,7 +195,9 @@ def detect_subscriptions():
                     None
                 ),
                 "duplicate_flag": duplicate_flag,
-                "duplicate_count": occurrences
+                "duplicate_count": total_detected,    # now reflects historical duplicates
+                "active_count": active_count,         # NEW field (safe addition)
+                "total_detected": total_detected      # NEW field (safe addition)
             })
 
     db.close()
@@ -660,7 +670,6 @@ def cancel_subscription_instance(transaction_id: int):
         return {"error": str(e)}
     finally:
         db.close()
-
 
 
 
