@@ -648,13 +648,13 @@ def cancel_subscription_instance(transaction_id: int):
         if not instance:
             return {"error": "Transaction not found"}
         
-        if instance.status == "active":
+        if instance.status != "cancelled":
             instance.status = "cancelled"
             instance.cancellation_date = datetime.now().strftime("%Y-%m-%d")
             db.commit()
             return {"success": True, "message": "Instance cancelled successfully"}
         else:
-            return {"error": "Instance is not active"}
+            return {"error": "Instance already cancelled"}
     except Exception as e:
         db.rollback()
         return {"error": str(e)}
