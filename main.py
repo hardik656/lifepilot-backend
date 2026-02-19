@@ -31,10 +31,7 @@ app.add_middleware(
 # =========================================================
 # DATABASE SETUP
 # =========================================================
-DATABASE_URL = "sqlite:///./lifepilot.db"
-engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
-SessionLocal = sessionmaker(bind=engine)
-Base = declarative_base()
+from database import engine, SessionLocal, Base
 
 class Transaction(Base):
     __tablename__ = "transactions"
@@ -77,6 +74,7 @@ class Brokerage(BaseModel):
 class CancellationUpdate(BaseModel):
     status: str
     cancellation_date: str | None = None
+    merchant: str | None = None
 
 class CancelRequest(BaseModel):
     merchant: str
@@ -478,29 +476,29 @@ def clear_data():
         return {"status": "error", "message": f"Failed to clear database: {e}"}
 
 @app.post("/cancel")
-def sync_cancel(merchant: str):
+def sync_cancel(data: CancellationUpdate):
     """
     Sync cancellation status from frontend.
     Called when user confirms cancellation in Wealth Pilot.
     """
-    print(f"🔄 Syncing cancellation status for {merchant}")
+    print(f"🔄 Syncing cancellation status for {data.merchant}")
     db = SessionLocal()
     
     try:
         # Update all transactions for this merchant to cancelled
-        updated_count = db.query(Transaction).filter(Transaction.merchant == merchant).update({
-            "status": "cancelled",
-            "cancellation_date": datetime.now().strftime("%Y-%m-%d")
+        updated_count = db.query(Transaction).filter(Transaction.merchant == data.merchant).update({
+            "status": data.status,
+            "cancellation_date": data.cancellation_date or datetime.now().strftime("%Y-%m-%d")
         })
         db.commit()
-        print(f"✅ Updated {updated_count} transactions for {merchant} to cancelled")
+        print(f"✅ Updated {updated_count} transactions for {data.merchant} to cancelled")
         db.close()
-        return {"status": "success", "merchant": merchant, "updated_count": updated_count}
+        return {"status": "success", "merchant": data.merchant, "updated_count": updated_count}
     except Exception as e:
         db.rollback()
         db.close()
         print(f"❌ Error syncing cancellation: {e}")
-        return {"status": "error", "message": f"Failed to sync cancellation for {merchant}"}
+        return {"status": "error", "message": f"Failed to sync cancellation for {data.merchant}"}
 
 # =========================================================
 # 📊 MARKET SCAN (INSIGHT ONLY - NO EXECUTION)
@@ -641,7 +639,9 @@ def get_subscription_instances(merchant: str):
 @app.post("/cancel-instance/{transaction_id}")
 def cancel_subscription_instance(transaction_id: int):
     db = SessionLocal()
-    print(f"===== CANCEL INSTANCE HIT for ID {transaction_id} - Merchant: {db.query(Transaction).filter(Transaction.id == transaction_id).first().merchant if db.query(Transaction).filter(Transaction.id == transaction_id).first() else 'NOT FOUND'} =====")
+    instance_check = db.query(Transaction).filter(Transaction.id == transaction_id).first()
+    merchant_name = instance_check.merchant if instance_check else 'NOT FOUND'
+    print(f"===== CANCEL INSTANCE HIT for ID {transaction_id} - Merchant: {merchant_name} =====")
     try:
         instance = db.query(Transaction).filter(Transaction.id == transaction_id).first()
         
@@ -660,6 +660,7 @@ def cancel_subscription_instance(transaction_id: int):
         return {"error": str(e)}
     finally:
         db.close()
+
 
 
 
