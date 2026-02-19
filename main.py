@@ -1,3 +1,4 @@
+
 # =========================================================
 # 🚀 LifePilot — AI Pilot Engine (Detection + Automation)
 # =========================================================
@@ -369,9 +370,13 @@ def parse_sms(data: SMSInput):
             if bank_match:
                 merchant = bank_match.group(1)
 
-        # Final fallback
+        # Final fallback (use cleaned text instead of generic bucket)
         if not merchant:
-            merchant = "Transaction"
+            words = re.findall(r"[A-Za-z]{3,}", line)
+            if words:
+                merchant = words[0].capitalize()
+            else:
+                merchant = "Unknown"
 
         # Clean merchant name
         merchant = merchant.split()[0].capitalize()
@@ -672,6 +677,5 @@ def cancel_subscription_instance(transaction_id: int):
         return {"error": str(e)}
     finally:
         db.close()
-
 
 
