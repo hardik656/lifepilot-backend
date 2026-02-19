@@ -1,4 +1,3 @@
-
 # =========================================================
 # 🚀 LifePilot — AI Pilot Engine (Detection + Automation)
 # =========================================================
@@ -379,7 +378,11 @@ def parse_sms(data: SMSInput):
                 merchant = "Unknown"
 
         # Clean merchant name
-        merchant = merchant.split()[0].capitalize()
+        BANK_KEYWORDS = ['spent', 'debit', 'debited', 'payment', 'transaction',
+                         'transfer', 'charged', 'purchase', 'paid', 'sent',
+                         'alert', 'info', 'dear', 'your', 'acct', 'account']
+        words = [w for w in merchant.split() if w.lower() not in BANK_KEYWORDS]
+        merchant = words[0].capitalize() if words else "Unknown"
 
         # Add to parsed transactions array
         parsed_transactions.append({
