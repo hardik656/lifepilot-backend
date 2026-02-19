@@ -170,11 +170,13 @@ def detect_subscriptions():
             
             statuses = {t.status for t in merchant_transactions}
 
+            active_transactions = [t for t in merchant_transactions if t.status == "active"]
+
             if "charge_detected_after_cancel" in statuses:
                 merchant_status = "charge_detected_after_cancel"
             elif "cancellation_requested" in statuses:
                 merchant_status = "cancellation_requested"
-            elif "cancelled" in statuses:
+            elif len(active_transactions) == 0 and "cancelled" in statuses:
                 merchant_status = "cancelled"
             else:
                 merchant_status = "active"
