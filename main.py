@@ -3,7 +3,6 @@
 # =========================================================
 import sys
 import os
-import pandas as pd
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from automation.cancel_bot import start_cancellation_bot
 from fastapi import FastAPI, UploadFile, File, Request, HTTPException
@@ -481,7 +480,7 @@ def parse_sms(data: SMSInput, request: Request):
             continue
 
         # 1️⃣ Currency + Amount Detection
-        currency_match = re.search(r"(Rs\.?|₹|\$|£)\s?(\d+(?:\.\d{1,2})?)", line)
+        currency_match = re.search(r"(INR|Rs\.?|₹|\$|£)\s?(\d+(?:\.\d{1,2})?)", line)
         if not currency_match:
             continue
 
@@ -489,7 +488,7 @@ def parse_sms(data: SMSInput, request: Request):
         amount = float(currency_match.group(2))
 
         # Normalize currency
-        if currency in ["Rs", "Rs.", "₹"]:
+        if currency in ["Rs", "Rs.", "₹", "INR"]:
             currency = "INR"
         elif currency == "$":
             currency = "USD"
@@ -790,78 +789,65 @@ def market_scan():
             cached["cached"] = True
             cached["cache_age_seconds"] = int(age)
             return cached
-    """
-    Lightweight market intelligence endpoint.
-    DOES NOT execute trades.
-    Returns strongest sectors and top opportunities.
-    """
 
-    import yfinance as yf
+    import requests
     from collections import defaultdict
-    from datetime import datetime
+
+    FINNHUB_KEY = "d65ov1hr01qiish0i2rgd65ov1hr01qiish0i2s0"
+
+    tickers = [
+        "NVDA", "AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA",
+        "JPM", "GS", "LLY", "UNH", "TSM", "ASML", "NVO", "SHOP",
+        "MELI", "INFY", "HDB", "BABA", "VALE"
+    ]
+
+    sector_map = {
+        "NVDA": "TECH", "AAPL": "TECH", "MSFT": "TECH",
+        "GOOGL": "TECH", "AMZN": "TECH", "META": "TECH",
+        "TSLA": "AUTO", "JPM": "FIN", "GS": "FIN",
+        "LLY": "HEALTH", "UNH": "HEALTH", "TSM": "TECH",
+        "ASML": "TECH", "NVO": "HEALTH", "SHOP": "TECH",
+        "MELI": "TECH", "INFY": "IND_TECH", "HDB": "FIN",
+        "BABA": "CHN_TECH", "VALE": "MINING"
+    }
 
     try:
-        tickers = [
-            "TSM", "SONY", "HMC", "TM", "BABA", "JD", "BIDU", "PDD", "INFY", "WIT", "HDB", "IBN",
-            "ASML", "SAP", "NVO", "SNY", "AZN", "RHHBY", "HSBC", "SHEL", "BP", "MBGYY", 
-            "RY", "TD", "SHOP", "MELI", "PBR", "VALE",
-            "NVDA", "AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "JPM", "GS", "LLY", "UNH",
-            "SPY", "QQQ", "EEM", "VGK", "EWJ", "INDA", "GLD", "SLV", "USO",
-            "BTC-USD", "ETH-USD", "SOL-USD"
-        ]
-        
-        sector_map = {
-            "TSM":"TECH", "SONY":"TECH", "HMC":"AUTO", "TM":"AUTO", 
-            "BABA":"CHN_TECH", "JD":"CHN_TECH", "BIDU":"CHN_TECH", "PDD":"CHN_TECH",
-            "INFY":"IND_TECH", "WIT":"IND_TECH", "HDB":"FIN", "IBN":"FIN",
-            "ASML":"TECH", "SAP":"TECH", "NVO":"HEALTH", "SNY":"HEALTH", "AZN":"HEALTH", "RHHBY":"HEALTH",
-            "HSBC":"FIN", "SHEL":"ENERGY", "BP":"ENERGY", "MBGYY":"AUTO",
-            "RY":"FIN", "TD":"FIN", "SHOP":"TECH", "MELI":"TECH", "PBR":"ENERGY", "VALE":"MINING",
-            "NVDA":"TECH", "AAPL":"TECH", "MSFT":"TECH", "GOOGL":"TECH", "AMZN":"TECH", "TSLA":"AUTO",
-            "JPM":"FIN", "GS":"FIN", "LLY":"HEALTH", "UNH":"HEALTH",
-            "SPY":"INDEX", "QQQ":"INDEX", "EEM":"GLOBAL_EM", "VGK":"EURO_INDEX", "EWJ":"JAPAN_INDEX", 
-            "INDA":"INDIA_INDEX", "GLD":"COMMODITY", "SLV":"COMMODITY", "USO":"COMMODITY",
-            "BTC-USD":"CRYPTO", "ETH-USD":"CRYPTO", "SOL-USD":"CRYPTO"
-        }
-
-        raw = yf.download(tickers, period="5d", interval="1h", group_by="ticker", progress=False)
-
         signals = {}
         sector_scores = defaultdict(list)
+        regime = "Bullish"
 
-        for s in tickers:
-            if s not in raw or raw[s].empty:
-                continue
+        for symbol in tickers:
+            try:
+                url = f"https://finnhub.io/api/v1/quote?symbol={symbol}&token={FINNHUB_KEY}"
+                res = requests.get(url, timeout=5)
+                if res.status_code != 200:
+                    continue
+                data = res.json()
 
-            df = raw[s].dropna()
-            if len(df) < 20:
-                continue
+                current = data.get("c", 0)
+                prev_close = data.get("pc", 0)
 
-            if isinstance(df.columns, pd.MultiIndex):
-                df.columns = df.columns.get_level_values(0)
+                if not current or not prev_close or prev_close == 0:
+                    continue
 
-            # Regime filter
-            if len(df) >= 200:
-                sma_200 = df['Close'].rolling(window=200).mean().iloc[-1]
-                current_price = df['Close'].iloc[-1]
-                regime = "Bullish" if current_price > sma_200 else "Bearish"
-            else:
-                regime = "Bullish"
+                momentum = (current - prev_close) / prev_close
+                signals[symbol] = float(momentum)
 
-            # Simple momentum signal (simplified version)
-            if len(df) >= 20:
-                momentum = (df['Close'].iloc[-1] / df['Close'].iloc[-20]) - 1
-                signals[s] = float(momentum)
-
-                sector = sector_map.get(s, "OTHER")
+                sector = sector_map.get(symbol, "OTHER")
                 sector_scores[sector].append(momentum)
 
+            except Exception:
+                continue
+
         if not signals:
-            return {"status": "no_data"}
+            return {
+                "status": "unavailable",
+                "message": "Market data temporarily unavailable. Please try again later."
+            }
 
         # Rank sectors
         sector_avg = {
-            sec: sum(vals)/len(vals)
+            sec: sum(vals) / len(vals)
             for sec, vals in sector_scores.items()
             if len(vals) > 0
         }
@@ -874,7 +860,11 @@ def market_scan():
 
         top_sector = sorted_sectors[0][0] if sorted_sectors else "NONE"
 
-        # Rank symbols
+        # Determine regime from majority of signals
+        bullish_count = sum(1 for v in signals.values() if v > 0)
+        regime = "Bullish" if bullish_count > len(signals) / 2 else "Bearish"
+
+        # Top opportunities
         top_symbols = sorted(
             signals.items(),
             key=lambda x: abs(x[1]),
@@ -894,14 +884,17 @@ def market_scan():
             "cache_age_seconds": 0
         }
 
-        # Store in cache
         _market_scan_cache["data"] = result
         _market_scan_cache["timestamp"] = datetime.now(timezone.utc)
 
         return result
 
     except Exception as e:
-        return {"error": str(e)}
+        return {
+            "status": "unavailable",
+            "message": "Market data temporarily unavailable. Please try again later.",
+            "error": str(e)
+        }
 
 # =========================================================
 # ROUTES: MERCHANTS DATABASE
