@@ -3,6 +3,7 @@
 # =========================================================
 import sys
 import os
+import pandas as pd
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from automation.cancel_bot import start_cancellation_bot
 from fastapi import FastAPI, UploadFile, File, Request, HTTPException
@@ -600,6 +601,17 @@ def parse_sms(data: SMSInput, request: Request):
                     break
         except Exception:
             pass  # Silent fallback — keep original merchant name
+
+        # Filter out one-time card spends — not subscriptions
+        ONE_TIME_KEYWORDS = [
+            'avl limit', 'available limit', 'avl bal',
+            'not you? sms', 'block', 'credit card',
+            'debit card', 'pos ', 'atm ', 'swipe'
+        ]
+        sms_lower = line.lower()
+        is_one_time = any(kw in sms_lower for kw in ONE_TIME_KEYWORDS)
+        if is_one_time:
+            continue
 
         # Add to parsed transactions array
         parsed_transactions.append({
