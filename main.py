@@ -327,6 +327,14 @@ def parse_sms(data: SMSInput):
     parsed_transactions = []
     current_date = datetime.now().strftime("%Y-%m-%d")
 
+    # Load merchant DB once outside loop — performance critical
+    import json
+    try:
+        with open("merchants.json", "r") as f:
+            merchant_db = json.load(f)
+    except Exception:
+        merchant_db = {}
+
     for line in lines:
         if not line.strip():
             continue
@@ -426,6 +434,32 @@ def parse_sms(data: SMSInput):
                          'not', 'you', 'upi', 'ref', 'from', 'via']
         words = [w for w in merchant.split() if w.lower() not in BANK_KEYWORDS]
         merchant = words[0].capitalize() if words else "Unknown"
+
+        # Normalize merchant against known merchant database
+        try:
+            # Normalize symbols before matching
+            # Replace dots/dashes with spaces, strip non-alpha
+            search = re.sub(r'[-.]', ' ', merchant)
+            search = re.sub(r'[^a-zA-Z\s]', '', search).lower().strip()
+
+            for key, data in merchant_db.items():
+                aliases = data.get("aliases", [])
+                matched = False
+                for alias in aliases:
+                    alias_clean = re.sub(r'[-.]', ' ', alias)
+                    alias_clean = re.sub(r'[^a-zA-Z\s]', '', alias_clean).lower().strip()
+
+                    # Exact match, search starts with alias, or alias is a whole word in search
+                    if (search == alias_clean or
+                        search.startswith(alias_clean) or
+                        alias_clean in search.split()):
+                        merchant = data["name"]
+                        matched = True
+                        break
+                if matched:
+                    break
+        except Exception:
+            pass  # Silent fallback — keep original merchant name
 
         # Add to parsed transactions array
         parsed_transactions.append({
@@ -670,6 +704,44 @@ def market_scan():
                 for sym, sig in top_symbols
             ]
         }
+
+    except Exception as e:
+        return {"error": str(e)}
+
+# =========================================================
+# ROUTES: MERCHANTS DATABASE
+# =========================================================
+
+@app.get("/merchants")
+def get_all_merchants():
+    try:
+        import json
+        with open("merchants.json", "r") as f:
+            data = json.load(f)
+        return data
+    except Exception as e:
+        return {"error": str(e)}
+
+@app.get("/merchants/{merchant_name}")
+def get_merchant_info(merchant_name: str):
+    try:
+        import json
+        with open("merchants.json", "r") as f:
+            data = json.load(f)
+
+        search = merchant_name.lower().strip()
+
+        # Direct key match first
+        if search in data:
+            return data[search]
+
+        # Alias match
+        for key, merchant in data.items():
+            aliases = merchant.get("aliases", [])
+            if any(search in alias.lower() or alias.lower() in search for alias in aliases):
+                return merchant
+
+        return {"found": False}
 
     except Exception as e:
         return {"error": str(e)}
