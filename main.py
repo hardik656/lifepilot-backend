@@ -6,7 +6,8 @@ import os
 import pandas as pd
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from automation.cancel_bot import start_cancellation_bot
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Request, HTTPException
+import time
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, text
 from sqlalchemy.orm import sessionmaker, declarative_base
@@ -81,6 +82,24 @@ def ensure_columns():
             print("✅ Added missing recurrence_confidence column")
 
 ensure_columns()
+
+# Simple in-memory rate limiter
+_rate_limit_store = defaultdict(list)
+RATE_LIMIT_MAX = 10
+RATE_LIMIT_WINDOW = 60
+
+def check_rate_limit(client_ip: str):
+    now = time.time()
+    window_start = now - RATE_LIMIT_WINDOW
+    _rate_limit_store[client_ip] = [
+        t for t in _rate_limit_store[client_ip] if t > window_start
+    ]
+    if len(_rate_limit_store[client_ip]) >= RATE_LIMIT_MAX:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many requests. Please wait a moment before parsing more SMS."
+        )
+    _rate_limit_store[client_ip].append(now)
 
 # =========================================================
 # DATA MODELS
@@ -442,7 +461,8 @@ def handle_investment(data: InvestmentRequest):
 # =========================================================
 
 @app.post("/parse-sms")
-def parse_sms(data: SMSInput):
+def parse_sms(data: SMSInput, request: Request):
+    check_rate_limit(request.client.host)
     db = SessionLocal()
     lines = data.text.splitlines()
     parsed_transactions = []
