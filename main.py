@@ -16,6 +16,16 @@ from datetime import datetime, timezone
 import csv
 import re
 
+import sentry_sdk
+from sentry_sdk.integrations.fastapi import FastApiIntegration
+
+sentry_sdk.init(
+    dsn=os.environ.get("SENTRY_DSN", ""),
+    integrations=[FastApiIntegration()],
+    traces_sample_rate=0.2,
+    environment="beta"
+)
+
 # 🚀 CONSOLIDATE APP DEFINITION
 app = FastAPI(title="LifePilot AI 🚀")
 
@@ -734,12 +744,32 @@ def sync_cancel(data: CancellationUpdate):
         print(f"❌ Error syncing cancellation: {e}")
         return {"status": "error", "message": f"Failed to sync cancellation for {data.merchant}"}
 
+# In-memory market scan cache
+_market_scan_cache = {
+    "data": None,
+    "timestamp": None
+}
+CACHE_TTL_SECONDS = 300  # 5 minutes
+
 # =========================================================
 # 📊 MARKET SCAN (INSIGHT ONLY - NO EXECUTION)
 # =========================================================
 
 @app.get("/market-scan")
 def market_scan():
+    global _market_scan_cache
+
+    # Return cached result if fresh
+    if (
+        _market_scan_cache["data"] is not None and
+        _market_scan_cache["timestamp"] is not None
+    ):
+        age = (datetime.now(timezone.utc) - _market_scan_cache["timestamp"]).total_seconds()
+        if age < CACHE_TTL_SECONDS:
+            cached = dict(_market_scan_cache["data"])
+            cached["cached"] = True
+            cached["cache_age_seconds"] = int(age)
+            return cached
     """
     Lightweight market intelligence endpoint.
     DOES NOT execute trades.
@@ -831,7 +861,7 @@ def market_scan():
             reverse=True
         )[:3]
 
-        return {
+        result = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "market_regime": regime,
             "strongest_sector": top_sector,
@@ -839,8 +869,16 @@ def market_scan():
             "top_opportunities": [
                 {"symbol": sym, "signal": round(sig, 5)}
                 for sym, sig in top_symbols
-            ]
+            ],
+            "cached": False,
+            "cache_age_seconds": 0
         }
+
+        # Store in cache
+        _market_scan_cache["data"] = result
+        _market_scan_cache["timestamp"] = datetime.now(timezone.utc)
+
+        return result
 
     except Exception as e:
         return {"error": str(e)}
@@ -932,4 +970,5 @@ def cancel_subscription_instance(transaction_id: int):
         return {"error": str(e)}
     finally:
         db.close()
+
 
