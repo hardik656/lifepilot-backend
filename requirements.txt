@@ -20,11 +20,11 @@ uvicorn==0.40.0
 joblib
 numpy
 pandas
-yfinance
 lightgbm
 scikit-learn
 schedule
 alpaca-py
 psycopg2-binary
 sentry-sdk[fastapi]
+
 
