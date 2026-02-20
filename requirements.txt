@@ -19,12 +19,12 @@ typing_extensions==4.15.0
 uvicorn==0.40.0
 joblib
 numpy
-pandas
 lightgbm
 scikit-learn
 schedule
 alpaca-py
 psycopg2-binary
 sentry-sdk[fastapi]
+
 
 
