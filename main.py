@@ -43,19 +43,26 @@ class Transaction(Base):
     status = Column(String, default="active")  # lifecycle only
     is_invested = Column(Boolean, default=False)
     cancellation_date = Column(String, default=None)
+    raw_sms = Column(String, default=None)
 
 Base.metadata.create_all(bind=engine)
 
-def ensure_is_invested_column():
+def ensure_columns():
     with engine.connect() as conn:
         result = conn.execute(text("PRAGMA table_info(transactions);"))
         columns = [row[1] for row in result]
 
         if "is_invested" not in columns:
             conn.execute(text("ALTER TABLE transactions ADD COLUMN is_invested BOOLEAN DEFAULT 0;"))
+            conn.commit()
             print("✅ Added missing is_invested column")
 
-ensure_is_invested_column()
+        if "raw_sms" not in columns:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN raw_sms TEXT DEFAULT NULL;"))
+            conn.commit()
+            print("✅ Added missing raw_sms column")
+
+ensure_columns()
 
 # =========================================================
 # DATA MODELS
@@ -466,7 +473,8 @@ def parse_sms(data: SMSInput):
             "merchant": merchant,
             "amount": amount,
             "currency": currency,
-            "date": current_date
+            "date": current_date,
+            "raw_sms": line.strip()
         })
 
     # Insert all parsed transactions into database
@@ -476,7 +484,8 @@ def parse_sms(data: SMSInput):
             amount=transaction["amount"],
             currency=transaction["currency"],
             date=transaction["date"],
-            status="active"
+            status="active",
+            raw_sms=transaction.get("raw_sms")
         )
         db.add(t)
 
@@ -795,5 +804,6 @@ def cancel_subscription_instance(transaction_id: int):
         return {"error": str(e)}
     finally:
         db.close()
+
 
 
