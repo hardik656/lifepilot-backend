@@ -25,4 +25,5 @@ lightgbm
 scikit-learn
 schedule
 alpaca-py
+psycopg2-binary
 
