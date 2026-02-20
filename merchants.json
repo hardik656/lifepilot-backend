@@ -1,0 +1,548 @@
+{
+  "netflix": {
+    "name": "Netflix",
+    "aliases": ["netflix", "netflix.com", "netflix india", "netflx", "netflix premium"],
+    "cancel_url": "https://www.netflix.com/cancel",
+    "cancel_email": null,
+    "cancel_method": "web",
+    "difficulty": "easy",
+    "cancel_steps": [
+      "Open Netflix on web or app",
+      "Go to Account",
+      "Tap Membership & Billing",
+      "Tap Cancel Membership",
+      "Confirm cancellation"
+    ],
+    "avg_processing_days": 1,
+    "region": ["GLOBAL"],
+    "last_verified": "2026-02-20",
+    "notes": "Cancellation takes effect at end of billing period. No refunds for partial months."
+  },
+  "spotify": {
+    "name": "Spotify",
+    "aliases": ["spotify", "spotify premium", "spotify ab", "spotify music"],
+    "cancel_url": "https://www.spotify.com/account/subscription/",
+    "cancel_email": null,
+    "cancel_method": "web",
+    "difficulty": "easy",
+    "cancel_steps": [
+      "Go to spotify.com/account",
+      "Click Manage Plan",
+      "Scroll down to Cancel Premium",
+      "Follow confirmation steps"
+    ],
+    "avg_processing_days": 1,
+    "region": ["GLOBAL"],
+    "last_verified": "2026-02-20",
+    "notes": "Premium continues until end of billing period after cancellation."
+  },
+  "apple": {
+    "name": "Apple",
+    "aliases": ["apple", "apple.com", "apple subscription", "apple one", "icloud", "apple music", "apple tv", "applecom"],
+    "cancel_url": "https://appleid.apple.com/account/manage",
+    "cancel_email": null,
+    "cancel_method": "app_store",
+    "difficulty": "easy",
+    "cancel_steps": [
+      "Open Settings on iPhone",
+      "Tap your name at top",
+      "Tap Subscriptions",
+      "Select Apple subscription",
+      "Tap Cancel Subscription"
+    ],
+    "avg_processing_days": 1,
+    "region": ["GLOBAL"],
+    "last_verified": "2026-02-20",
+    "notes": "Each Apple service must be cancelled individually."
+  },
+  "amazon": {
+    "name": "Amazon Prime",
+    "aliases": ["amazon", "amazon prime", "amazon.com", "prime video", "primevideo", "amazon india", "amazon prime video"],
+    "cancel_url": "https://www.amazon.com/mc/pipelines/cancellation",
+    "cancel_email": null,
+    "cancel_method": "web",
+    "difficulty": "medium",
+    "cancel_steps": [
+      "Go to amazon.com",
+      "Account & Lists → Prime Membership",
+      "Click Manage Membership",
+      "Click End Membership",
+      "Confirm cancellation"
+    ],
+    "avg_processing_days": 1,
+    "region": ["GLOBAL"],
+    "last_verified": "2026-02-20",
+    "notes": "Refund available if cancelled within 3 days of renewal."
+  },
+  "youtube": {
+    "name": "YouTube Premium",
+    "aliases": ["youtube", "youtube premium", "youtube music", "ytpremium", "google youtube"],
+    "cancel_url": "https://www.youtube.com/paid_memberships",
+    "cancel_email": null,
+    "cancel_method": "web",
+    "difficulty": "easy",
+    "cancel_steps": [
+      "Go to youtube.com/paid_memberships",
+      "Click Manage Membership",
+      "Click Deactivate",
+      "Confirm cancellation"
+    ],
+    "avg_processing_days": 1,
+    "region": ["GLOBAL"],
+    "last_verified": "2026-02-20",
+    "notes": "Premium continues until end of billing period."
+  },
+  "disney": {
+    "name": "Disney+",
+    "aliases": ["disney", "disney+", "disneyplus", "disney plus", "hotstar disney", "disney+ hotstar"],
+    "cancel_url": "https://www.disneyplus.com/account",
+    "cancel_email": null,
+    "cancel_method": "web",
+    "difficulty": "easy",
+    "cancel_steps": [
+      "Go to disneyplus.com",
+      "Tap your profile icon",
+      "Go to Account",
+      "Select your subscription",
+      "Tap Cancel Subscription"
+    ],
+    "avg_processing_days": 1,
+    "region": ["GLOBAL"],
+    "last_verified": "2026-02-20",
+    "notes": "Access continues until end of current billing cycle."
+  },
+  "adobe": {
+    "name": "Adobe",
+    "aliases": ["adobe", "adobe creative cloud", "adobe cc", "creative cloud", "adobe photoshop", "adobe acrobat"],
+    "cancel_url": "https://account.adobe.com/plans",
+    "cancel_email": null,
+    "cancel_method": "web",
+    "difficulty": "hard",
+    "cancel_steps": [
+      "Go to account.adobe.com/plans",
+      "Select plan to cancel",
+      "Click Manage Plan",
+      "Click Cancel Plan",
+      "Navigate through retention flow — Adobe will offer discounts",
+      "Keep declining until you reach final confirmation",
+      "Confirm cancellation"
+    ],
+    "avg_processing_days": 1,
+    "region": ["GLOBAL"],
+    "last_verified": "2026-02-20",
+    "notes": "Early cancellation fee may apply if within annual contract. Adobe has aggressive retention flow — expect 3-5 minutes."
+  },
+  "google": {
+    "name": "Google One",
+    "aliases": ["google", "google one", "google storage", "google workspace", "google drive"],
+    "cancel_url": "https://one.google.com/storage",
+    "cancel_email": null,
+    "cancel_method": "web",
+    "difficulty": "easy",
+    "cancel_steps": [
+      "Go to one.google.com",
+      "Click Manage",
+      "Click Cancel Plan",
+      "Confirm cancellation"
+    ],
+    "avg_processing_days": 1,
+    "region": ["GLOBAL"],
+    "last_verified": "2026-02-20",
+    "notes": "Storage returns to free tier after cancellation."
+  },
+  "microsoft": {
+    "name": "Microsoft 365",
+    "aliases": ["microsoft", "microsoft 365", "office 365", "ms office", "microsoft office", "outlook premium"],
+    "cancel_url": "https://account.microsoft.com/services",
+    "cancel_email": null,
+    "cancel_method": "web",
+    "difficulty": "medium",
+    "cancel_steps": [
+      "Go to account.microsoft.com/services",
+      "Find Microsoft 365",
+      "Click Cancel",
+      "Follow confirmation steps"
+    ],
+    "avg_processing_days": 1,
+    "region": ["GLOBAL"],
+    "last_verified": "2026-02-20",
+    "notes": "Access continues until end of billing period."
+  },
+  "dropbox": {
+    "name": "Dropbox",
+    "aliases": ["dropbox", "dropbox plus", "dropbox business", "dropbox pro"],
+    "cancel_url": "https://www.dropbox.com/account/plan",
+    "cancel_email": null,
+    "cancel_method": "web",
+    "difficulty": "easy",
+    "cancel_steps": [
+      "Go to dropbox.com/account/plan",
+      "Click Cancel Plan",
+      "Select reason",
+      "Confirm cancellation"
+    ],
+    "avg_processing_days": 1,
+    "region": ["GLOBAL"],
+    "last_verified": "2026-02-20",
+    "notes": "Files remain accessible on free tier after downgrade."
+  },
+  "linkedin": {
+    "name": "LinkedIn Premium",
+    "aliases": ["linkedin", "linkedin premium", "linkedin career", "linkedin business"],
+    "cancel_url": "https://www.linkedin.com/premium/manage",
+    "cancel_email": null,
+    "cancel_method": "web",
+    "difficulty": "medium",
+    "cancel_steps": [
+      "Go to linkedin.com/premium/manage",
+      "Click Cancel Subscription",
+      "Select reason",
+      "Confirm cancellation"
+    ],
+    "avg_processing_days": 1,
+    "region": ["GLOBAL"],
+    "last_verified": "2026-02-20",
+    "notes": "Premium features remain until end of billing period."
+  },
+  "canva": {
+    "name": "Canva Pro",
+    "aliases": ["canva", "canva pro", "canva premium"],
+    "cancel_url": "https://www.canva.com/settings/billing",
+    "cancel_email": null,
+    "cancel_method": "web",
+    "difficulty": "easy",
+    "cancel_steps": [
+      "Go to canva.com/settings/billing",
+      "Click Cancel Plan",
+      "Follow confirmation steps"
+    ],
+    "avg_processing_days": 1,
+    "region": ["GLOBAL"],
+    "last_verified": "2026-02-20",
+    "notes": "Reverts to free plan after cancellation."
+  },
+  "nordvpn": {
+    "name": "NordVPN",
+    "aliases": ["nordvpn", "nord vpn", "nordvpn premium"],
+    "cancel_url": "https://my.nordaccount.com/dashboard/nordvpn",
+    "cancel_email": "support@nordvpn.com",
+    "cancel_method": "mixed",
+    "difficulty": "medium",
+    "cancel_steps": [
+      "Go to my.nordaccount.com",
+      "Go to Billing",
+      "Click Cancel Subscription",
+      "Or email support@nordvpn.com with subject: Cancel Subscription"
+    ],
+    "avg_processing_days": 3,
+    "region": ["GLOBAL"],
+    "last_verified": "2026-02-20",
+    "notes": "30-day money back guarantee on first purchase."
+  },
+  "duolingo": {
+    "name": "Duolingo Plus",
+    "aliases": ["duolingo", "duolingo plus", "super duolingo"],
+    "cancel_url": "https://www.duolingo.com/settings/super",
+    "cancel_email": null,
+    "cancel_method": "app_store",
+    "difficulty": "easy",
+    "cancel_steps": [
+      "Open Duolingo app",
+      "Go to Profile → Settings",
+      "Tap Super Duolingo",
+      "Tap Cancel Subscription"
+    ],
+    "avg_processing_days": 1,
+    "region": ["GLOBAL"],
+    "last_verified": "2026-02-20",
+    "notes": "Must cancel through App Store or Play Store if subscribed there."
+  },
+  "chatgpt": {
+    "name": "ChatGPT Plus",
+    "aliases": ["chatgpt", "chatgpt plus", "openai", "openai plus"],
+    "cancel_url": "https://chat.openai.com/#settings",
+    "cancel_email": null,
+    "cancel_method": "web",
+    "difficulty": "easy",
+    "cancel_steps": [
+      "Go to chat.openai.com",
+      "Click your profile → Settings",
+      "Click Manage Subscription",
+      "Click Cancel Plan"
+    ],
+    "avg_processing_days": 1,
+    "region": ["GLOBAL"],
+    "last_verified": "2026-02-20",
+    "notes": "Access continues until end of billing period."
+  },
+  "gym": {
+    "name": "Gym Membership",
+    "aliases": ["gym", "fitness", "cult fit", "anytime fitness", "gold gym", "snap fitness", "la fitness"],
+    "cancel_url": null,
+    "cancel_email": null,
+    "cancel_method": "in_person",
+    "difficulty": "hard",
+    "cancel_steps": [
+      "Visit your gym in person — most require in-person cancellation",
+      "Ask for a cancellation form",
+      "Submit form and get written confirmation",
+      "Photograph the confirmation for your records",
+      "Check your bank statement next month to confirm no charge"
+    ],
+    "avg_processing_days": 30,
+    "region": ["GLOBAL"],
+    "last_verified": "2026-02-20",
+    "notes": "Notice period of 30 days common. Get written confirmation always. Some gyms require certified mail."
+  },
+  "hotstar": {
+    "name": "Hotstar",
+    "aliases": ["hotstar", "disney+ hotstar", "jio hotstar", "hotstar premium", "hotstar vip"],
+    "cancel_url": "https://www.hotstar.com/in/subscribe",
+    "cancel_email": null,
+    "cancel_method": "app_store",
+    "difficulty": "easy",
+    "cancel_steps": [
+      "Open Hotstar app",
+      "Go to Account → Subscription",
+      "Tap Cancel Subscription",
+      "Confirm cancellation"
+    ],
+    "avg_processing_days": 1,
+    "region": ["IN"],
+    "last_verified": "2026-02-20",
+    "notes": "No refund for unused period."
+  },
+  "zerodha": {
+    "name": "Zerodha",
+    "aliases": ["zerodha", "kite zerodha", "zerodha kite"],
+    "cancel_url": "https://kite.zerodha.com/",
+    "cancel_email": "support@zerodha.com",
+    "cancel_method": "email",
+    "difficulty": "medium",
+    "cancel_steps": [
+      "Log in to kite.zerodha.com",
+      "Go to Profile → Account Closure",
+      "Or email support@zerodha.com with subject: Account Closure Request"
+    ],
+    "avg_processing_days": 7,
+    "region": ["IN"],
+    "last_verified": "2026-02-20",
+    "notes": "Ensure all holdings are sold before closing account."
+  },
+  "groww": {
+    "name": "Groww",
+    "aliases": ["groww", "groww app", "groww invest"],
+    "cancel_url": "https://groww.in/",
+    "cancel_email": "support@groww.in",
+    "cancel_method": "email",
+    "difficulty": "medium",
+    "cancel_steps": [
+      "Open Groww app",
+      "Go to Profile → Help & Support",
+      "Request account deactivation",
+      "Or email support@groww.in"
+    ],
+    "avg_processing_days": 7,
+    "region": ["IN"],
+    "last_verified": "2026-02-20",
+    "notes": "Withdraw all funds before deactivation."
+  },
+  "swiggy": {
+    "name": "Swiggy One",
+    "aliases": ["swiggy", "swiggy one", "swiggy instamart", "swiggy genie"],
+    "cancel_url": "https://www.swiggy.com/",
+    "cancel_email": null,
+    "cancel_method": "app_store",
+    "difficulty": "easy",
+    "cancel_steps": [
+      "Open Swiggy app",
+      "Go to Account → Swiggy One",
+      "Tap Manage Membership",
+      "Tap Cancel Membership"
+    ],
+    "avg_processing_days": 1,
+    "region": ["IN"],
+    "last_verified": "2026-02-20",
+    "notes": "Benefits continue until end of membership period."
+  },
+  "zomato": {
+    "name": "Zomato Gold",
+    "aliases": ["zomato", "zomato gold", "zomato pro", "payzomato"],
+    "cancel_url": "https://www.zomato.com/",
+    "cancel_email": null,
+    "cancel_method": "app_store",
+    "difficulty": "easy",
+    "cancel_steps": [
+      "Open Zomato app",
+      "Go to Profile → Zomato Gold",
+      "Tap Manage Membership",
+      "Tap Cancel Membership"
+    ],
+    "avg_processing_days": 1,
+    "region": ["IN"],
+    "last_verified": "2026-02-20",
+    "notes": "No refund for unused period."
+  },
+  "jio": {
+    "name": "Jio",
+    "aliases": ["jio", "reliance jio", "jio fiber", "jio cinema", "jiocinema"],
+    "cancel_url": "https://www.jio.com/",
+    "cancel_email": null,
+    "cancel_method": "app_store",
+    "difficulty": "easy",
+    "cancel_steps": [
+      "Open MyJio app",
+      "Go to My Plans",
+      "Select active plan",
+      "Tap Deactivate or let plan expire without renewal"
+    ],
+    "avg_processing_days": 1,
+    "region": ["IN"],
+    "last_verified": "2026-02-20",
+    "notes": "Prepaid plans expire automatically. Postpaid requires deactivation request."
+  },
+  "airtel": {
+    "name": "Airtel",
+    "aliases": ["airtel", "airtel xstream", "airtel thanks", "airtel black"],
+    "cancel_url": "https://www.airtel.in/",
+    "cancel_email": null,
+    "cancel_method": "phone",
+    "difficulty": "medium",
+    "cancel_steps": [
+      "Open Airtel Thanks app",
+      "Go to My Account → My Plans",
+      "Select plan to cancel",
+      "Or call 121 for cancellation assistance"
+    ],
+    "avg_processing_days": 2,
+    "region": ["IN"],
+    "last_verified": "2026-02-20",
+    "notes": "Postpaid cancellation requires 30 day notice."
+  },
+  "byju": {
+    "name": "BYJU'S",
+    "aliases": ["byju", "byjus", "byju's", "byju learning"],
+    "cancel_url": null,
+    "cancel_email": "support@byjus.com",
+    "cancel_method": "email",
+    "difficulty": "hard",
+    "cancel_steps": [
+      "Email support@byjus.com with subject: Cancel Subscription",
+      "Include your registered mobile number and student name",
+      "Request written confirmation of cancellation",
+      "Follow up if no response within 48 hours"
+    ],
+    "avg_processing_days": 7,
+    "region": ["IN"],
+    "last_verified": "2026-02-20",
+    "notes": "Cancellation policy varies by plan. Get written confirmation. Known for difficult cancellation process."
+  },
+  "unacademy": {
+    "name": "Unacademy",
+    "aliases": ["unacademy", "unacademy plus", "unacademy learn"],
+    "cancel_url": "https://unacademy.com/",
+    "cancel_email": "support@unacademy.com",
+    "cancel_method": "mixed",
+    "difficulty": "medium",
+    "cancel_steps": [
+      "Open Unacademy app",
+      "Go to Profile → Subscription",
+      "Tap Cancel Subscription",
+      "Or email support@unacademy.com"
+    ],
+    "avg_processing_days": 3,
+    "region": ["IN"],
+    "last_verified": "2026-02-20",
+    "notes": "No refund for unused period."
+  },
+  "cred": {
+    "name": "CRED",
+    "aliases": ["cred", "cred club", "cred premium"],
+    "cancel_url": "https://cred.club/",
+    "cancel_email": "support@cred.club",
+    "cancel_method": "mixed",
+    "difficulty": "medium",
+    "cancel_steps": [
+      "Open CRED app",
+      "Go to Profile → Help",
+      "Request subscription cancellation",
+      "Or email support@cred.club"
+    ],
+    "avg_processing_days": 3,
+    "region": ["IN"],
+    "last_verified": "2026-02-20",
+    "notes": "CRED coins non-refundable."
+  },
+  "sonyliv": {
+    "name": "SonyLIV",
+    "aliases": ["sonyliv", "sony liv", "sony entertainment", "sony premium"],
+    "cancel_url": "https://www.sonyliv.com/",
+    "cancel_email": null,
+    "cancel_method": "app_store",
+    "difficulty": "easy",
+    "cancel_steps": [
+      "Open SonyLIV app",
+      "Go to Profile → Subscription",
+      "Tap Cancel Subscription",
+      "Confirm cancellation"
+    ],
+    "avg_processing_days": 1,
+    "region": ["IN"],
+    "last_verified": "2026-02-20",
+    "notes": "Access continues until end of billing period."
+  },
+  "phonepe": {
+    "name": "PhonePe",
+    "aliases": ["phonepe", "phone pe", "phonepe switch"],
+    "cancel_url": "https://www.phonepe.com/",
+    "cancel_email": null,
+    "cancel_method": "app_store",
+    "difficulty": "easy",
+    "cancel_steps": [
+      "Open PhonePe app",
+      "Go to Profile → Recurring Payments",
+      "Select the mandate to cancel",
+      "Tap Cancel Mandate"
+    ],
+    "avg_processing_days": 1,
+    "region": ["IN"],
+    "last_verified": "2026-02-20",
+    "notes": "UPI mandates can be cancelled directly through PhonePe."
+  },
+  "paytm": {
+    "name": "Paytm",
+    "aliases": ["paytm", "paytm mall", "paytm money", "paytm first"],
+    "cancel_url": "https://paytm.com/",
+    "cancel_email": null,
+    "cancel_method": "app_store",
+    "difficulty": "easy",
+    "cancel_steps": [
+      "Open Paytm app",
+      "Go to Profile → Passbook",
+      "Find recurring payment",
+      "Tap Cancel Auto-Pay"
+    ],
+    "avg_processing_days": 1,
+    "region": ["IN"],
+    "last_verified": "2026-02-20",
+    "notes": "UPI auto-pay mandates cancelled instantly."
+  },
+  "curefit": {
+    "name": "Cure.fit",
+    "aliases": ["curefit", "cure.fit", "cult fit", "cultfit", "cult.fit"],
+    "cancel_url": "https://www.cure.fit/",
+    "cancel_email": "support@cure.fit",
+    "cancel_method": "mixed",
+    "difficulty": "medium",
+    "cancel_steps": [
+      "Open Cure.fit app",
+      "Go to Profile → My Memberships",
+      "Tap Cancel Membership",
+      "Or email support@cure.fit"
+    ],
+    "avg_processing_days": 3,
+    "region": ["IN"],
+    "last_verified": "2026-02-20",
+    "notes": "Cancellation policy varies. Get written confirmation."
+  }
+}
