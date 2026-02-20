@@ -49,6 +49,8 @@ class Transaction(Base):
 Base.metadata.create_all(bind=engine)
 
 def ensure_columns():
+    if engine.url.get_backend_name() != "sqlite":
+        return
     with engine.connect() as conn:
         result = conn.execute(text("PRAGMA table_info(transactions);"))
         columns = [row[1] for row in result]
