@@ -228,6 +228,11 @@ def detect_subscriptions():
             ):
                 merchant_data[r.merchant]["last_date"] = r.date
     
+    # Build merchant transactions map — 1 query instead of N queries
+    merchant_transactions_map = defaultdict(list)
+    for r in rows:
+        merchant_transactions_map[r.merchant].append(r)
+
     result = []
     total_savings_sum = 0
     today = datetime.now()
@@ -255,14 +260,12 @@ def detect_subscriptions():
             elif most_common_currency == "$":
                 normalized_currency = "USD"
             
-            is_stale = True
+            is_stale = days_diff > 45
             
             merchant_status = "active"
             
-            merchant_transactions = db.query(Transaction).filter(
-                Transaction.merchant == merchant
-            ).all()
-            
+            merchant_transactions = merchant_transactions_map[merchant]
+
             statuses = {t.status for t in merchant_transactions}
 
             active_transactions = [t for t in merchant_transactions if t.status == "active"]
@@ -597,6 +600,22 @@ def parse_sms(data: SMSInput):
         db.add(t)
 
     db.commit()
+
+    # Recalculate recurrence for all affected merchants after insert
+    # This fixes confidence lag — new transaction now visible in DB
+    unique_merchants = set(t["merchant"] for t in parsed_transactions)
+    for merchant_name in unique_merchants:
+        merchant_txns = db.query(Transaction).filter(
+            Transaction.merchant == merchant_name
+        ).all()
+        latest_sms = next(
+            (t.raw_sms for t in reversed(merchant_txns) if t.raw_sms), ""
+        )
+        updated_score = classify_recurrence(merchant_name, 0, latest_sms, db)
+        for t in merchant_txns:
+            t.recurrence_confidence = updated_score
+
+    db.commit()
     db.close()
     return {"parsed_transactions": parsed_transactions}
 
@@ -911,5 +930,4 @@ def cancel_subscription_instance(transaction_id: int):
         return {"error": str(e)}
     finally:
         db.close()
-
 
