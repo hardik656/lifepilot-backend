@@ -44,6 +44,7 @@ class Transaction(Base):
     is_invested = Column(Boolean, default=False)
     cancellation_date = Column(String, default=None)
     raw_sms = Column(String, default=None)
+    recurrence_confidence = Column(Float, default=0.0)
 
 Base.metadata.create_all(bind=engine)
 
@@ -61,6 +62,11 @@ def ensure_columns():
             conn.execute(text("ALTER TABLE transactions ADD COLUMN raw_sms TEXT DEFAULT NULL;"))
             conn.commit()
             print("✅ Added missing raw_sms column")
+
+        if "recurrence_confidence" not in columns:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN recurrence_confidence FLOAT DEFAULT 0.0;"))
+            conn.commit()
+            print("✅ Added missing recurrence_confidence column")
 
 ensure_columns()
 
@@ -96,6 +102,88 @@ class InvestmentRequest(BaseModel):
 # =========================================================
 # ROUTES: DETECTION
 # =========================================================
+
+def classify_recurrence(merchant: str, amount: float, raw_sms: str, db) -> float:
+    """
+    3-layer recurrence classifier.
+    Returns confidence score between 0.0 and 1.0.
+    """
+    confidence = 0.0
+
+    # =========================================================
+    # LAYER 3 — Text Signal Boost (check raw SMS first)
+    # Boosts confidence if SMS contains recurring payment keywords
+    # =========================================================
+    RECURRING_KEYWORDS = [
+        "subscription", "renewal", "auto-debit", "auto debit",
+        "standing instruction", " si ", "recurring", "emi",
+        "mandate", "autopay", "auto-pay", "monthly charge",
+        "annual charge", "yearly charge", "membership"
+    ]
+    sms_lower = (raw_sms or "").lower()
+    text_boost = 0.0
+    for keyword in RECURRING_KEYWORDS:
+        if keyword in sms_lower:
+            text_boost = 0.2
+            break
+
+    # =========================================================
+    # LAYER 1 + 2 — Pattern Analysis
+    # Requires 2+ transactions for same merchant
+    # =========================================================
+    transactions = db.query(Transaction).filter(
+        Transaction.merchant == merchant,
+        Transaction.status == "active"
+    ).order_by(Transaction.date).all()
+
+    if len(transactions) < 2:
+        # Single transaction — rely on text signal only
+        confidence = text_boost
+        return round(min(confidence, 1.0), 2)
+
+    # Calculate intervals and amount variation
+    dates = []
+    amounts = []
+    for t in transactions:
+        try:
+            dates.append(datetime.strptime(t.date, "%Y-%m-%d"))
+            amounts.append(t.amount)
+        except Exception:
+            continue
+
+    if len(dates) < 2:
+        confidence = text_boost
+        return round(min(confidence, 1.0), 2)
+
+    intervals = [(dates[i+1] - dates[i]).days for i in range(len(dates)-1)]
+    avg_interval = sum(intervals) / len(intervals)
+    avg_amount = sum(amounts) / len(amounts)
+    amount_variation = max(abs(a - avg_amount) / avg_amount for a in amounts) if avg_amount > 0 else 1.0
+
+    # LAYER 1 — Deterministic: monthly pattern, stable amount
+    is_monthly = all(25 <= interval <= 35 for interval in intervals)
+    is_stable_amount = amount_variation <= 0.20
+
+    if is_monthly and is_stable_amount:
+        confidence = 0.90 + text_boost
+        return round(min(confidence, 1.0), 2)
+
+    # LAYER 2 — Semi-recurring: inconsistent interval but similar amount
+    is_semi_recurring = (
+        15 <= avg_interval <= 45 and
+        amount_variation <= 0.35 and
+        len(transactions) >= 2
+    )
+
+    if is_semi_recurring:
+        # Scale confidence based on how many occurrences
+        occurrence_boost = min(len(transactions) * 0.05, 0.15)
+        confidence = 0.60 + occurrence_boost + text_boost
+        return round(min(confidence, 1.0), 2)
+
+    # Below threshold — text signal only
+    confidence = text_boost
+    return round(min(confidence, 1.0), 2)
 
 @app.get("/subscriptions")
 def detect_subscriptions():
@@ -190,6 +278,16 @@ def detect_subscriptions():
             
             duplicate_flag = active_count > 1
             
+            # Get latest raw SMS for this merchant for text signal
+            latest_raw_sms = next(
+                (t.raw_sms for t in reversed(merchant_transactions) if t.raw_sms),
+                ""
+            )
+
+            recurrence_score = classify_recurrence(
+                merchant, monthly_cost, latest_raw_sms, db
+            )
+
             result.append({
                 "merchant": merchant,
                 "monthly_cost": round(monthly_cost, 2),
@@ -206,7 +304,8 @@ def detect_subscriptions():
                 "duplicate_flag": duplicate_flag,
                 "duplicate_count": total_detected,    # now reflects historical duplicates
                 "active_count": active_count,         # NEW field (safe addition)
-                "total_detected": total_detected      # NEW field (safe addition)
+                "total_detected": total_detected,      # NEW field (safe addition)
+                "recurrence_confidence": recurrence_score
             })
 
     db.close()
@@ -479,13 +578,21 @@ def parse_sms(data: SMSInput):
 
     # Insert all parsed transactions into database
     for transaction in parsed_transactions:
+        # Calculate initial confidence on insert
+        initial_confidence = classify_recurrence(
+            transaction["merchant"],
+            transaction["amount"],
+            transaction.get("raw_sms", ""),
+            db
+        )
         t = Transaction(
             merchant=transaction["merchant"],
             amount=transaction["amount"],
             currency=transaction["currency"],
             date=transaction["date"],
             status="active",
-            raw_sms=transaction.get("raw_sms")
+            raw_sms=transaction.get("raw_sms"),
+            recurrence_confidence=initial_confidence
         )
         db.add(t)
 
@@ -804,6 +911,5 @@ def cancel_subscription_instance(transaction_id: int):
         return {"error": str(e)}
     finally:
         db.close()
-
 
 
