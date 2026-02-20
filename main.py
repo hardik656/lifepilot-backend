@@ -475,8 +475,6 @@ def parse_sms(data: SMSInput, request: Request):
         'available limit', 
         'not you? sms block',
         'avl bal',
-        'your a/c',
-        'a/c no',
     ]
     if any(signal in full_text for signal in ONE_TIME_SIGNALS):
         db.close()
@@ -998,5 +996,6 @@ def cancel_subscription_instance(transaction_id: int):
         return {"error": str(e)}
     finally:
         db.close()
+
 
 
