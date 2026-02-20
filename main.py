@@ -468,6 +468,20 @@ def parse_sms(data: SMSInput, request: Request):
     parsed_transactions = []
     current_date = datetime.now().strftime("%Y-%m-%d")
 
+    # Reject entire SMS if it looks like a one-time card spend
+    full_text = data.text.lower()
+    ONE_TIME_SIGNALS = [
+        'avl limit',
+        'available limit', 
+        'not you? sms block',
+        'avl bal',
+        'your a/c',
+        'a/c no',
+    ]
+    if any(signal in full_text for signal in ONE_TIME_SIGNALS):
+        db.close()
+        return {"parsed_transactions": []}
+
     # Load merchant DB once outside loop — performance critical
     import json
     try:
@@ -601,17 +615,6 @@ def parse_sms(data: SMSInput, request: Request):
                     break
         except Exception:
             pass  # Silent fallback — keep original merchant name
-
-        # Filter out one-time card spends — not subscriptions
-        ONE_TIME_KEYWORDS = [
-            'avl limit', 'available limit', 'avl bal',
-            'not you? sms', 'block', 'credit card',
-            'debit card', 'pos ', 'atm ', 'swipe'
-        ]
-        sms_lower = line.lower()
-        is_one_time = any(kw in sms_lower for kw in ONE_TIME_KEYWORDS)
-        if is_one_time:
-            continue
 
         # Add to parsed transactions array
         parsed_transactions.append({
