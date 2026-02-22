@@ -6,7 +6,7 @@ import os
 import pandas as pd
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from automation.cancel_bot import start_cancellation_bot
-from fastapi import FastAPI, UploadFile, File, Request, HTTPException
+from fastapi import FastAPI, UploadFile, File, Request, HTTPException, Header
 import time
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, text
@@ -56,32 +56,27 @@ class Transaction(Base):
     cancellation_date = Column(String, default=None)
     raw_sms = Column(String, default=None)
     recurrence_confidence = Column(Float, default=0.0)
+    device_id = Column(String, default="legacy")
 
 Base.metadata.create_all(bind=engine)
 
 def ensure_columns():
-    if engine.url.get_backend_name() != "sqlite":
-        return
     with engine.connect() as conn:
-        result = conn.execute(text("PRAGMA table_info(transactions);"))
-        columns = [row[1] for row in result]
-
-        if "is_invested" not in columns:
-            conn.execute(text("ALTER TABLE transactions ADD COLUMN is_invested BOOLEAN DEFAULT 0;"))
+        try:
+            conn.execute(text("ALTER TABLE transactions ADD COLUMN device_id VARCHAR DEFAULT 'legacy'"))
             conn.commit()
-            print("✅ Added missing is_invested column")
-
-        if "raw_sms" not in columns:
-            conn.execute(text("ALTER TABLE transactions ADD COLUMN raw_sms TEXT DEFAULT NULL;"))
-            conn.commit()
-            print("✅ Added missing raw_sms column")
-
-        if "recurrence_confidence" not in columns:
-            conn.execute(text("ALTER TABLE transactions ADD COLUMN recurrence_confidence FLOAT DEFAULT 0.0;"))
-            conn.commit()
-            print("✅ Added missing recurrence_confidence column")
+            print("✅ Added device_id column")
+        except Exception:
+            pass  # Column already exists — safe to ignore
 
 ensure_columns()
+
+from typing import Optional
+
+def get_device_id(x_device_id: Optional[str] = None) -> str:
+    if x_device_id and len(x_device_id) > 5:
+        return x_device_id
+    return "legacy"
 
 # Simple in-memory rate limiter
 _rate_limit_store = defaultdict(list)
@@ -106,6 +101,7 @@ def check_rate_limit(client_ip: str):
 # =========================================================
 class SMSInput(BaseModel):
     text: str
+    device_id: Optional[str] = None
 
 class Brokerage(BaseModel):
     id: str
@@ -129,6 +125,7 @@ class InvestmentRequest(BaseModel):
     merchant: str
     monthly_cost: float
     currency: str = "$"
+    device_id: Optional[str] = None
 
 # =========================================================
 # ROUTES: DETECTION
@@ -217,9 +214,10 @@ def classify_recurrence(merchant: str, amount: float, raw_sms: str, db) -> float
     return round(min(confidence, 1.0), 2)
 
 @app.get("/subscriptions")
-def detect_subscriptions():
+def detect_subscriptions(x_device_id: Optional[str] = Header(None)):
+    device_id = get_device_id(x_device_id)
     db = SessionLocal()
-    rows = db.query(Transaction).all()
+    rows = db.query(Transaction).filter(Transaction.device_id == device_id).all()
     merchant_invested = set()
     merchant_data = defaultdict(lambda: {"amounts": [], "last_date": "", "currencies": []})
     merchant_total_counts = defaultdict(int)
@@ -371,11 +369,13 @@ def handle_cancel(data: CancelRequest):
     return {"status": "error", "message": "Bot failed to execute"}
 
 @app.put("/subscriptions/{merchant}/cancellation-status")
-def update_cancellation_status(merchant: str, data: CancellationUpdate):
+def update_cancellation_status(merchant: str, data: CancellationUpdate, x_device_id: Optional[str] = Header(None)):
+    device_id = get_device_id(x_device_id)
     db = SessionLocal()
     try:
         transactions = db.query(Transaction).filter(
-            Transaction.merchant == merchant
+            Transaction.merchant == merchant,
+            Transaction.device_id == device_id
         ).all()
 
         if not transactions:
@@ -399,11 +399,12 @@ def update_cancellation_status(merchant: str, data: CancellationUpdate):
 # =========================================================
 
 @app.post("/invest/{merchant}")
-def handle_investment(data: InvestmentRequest):
+def handle_investment(data: InvestmentRequest, x_device_id: Optional[str] = Header(None)):
     """
     Records when user invests a subscription into Gold Vault.
     Updates subscription status to 'invested' and tracks total investments.
     """
+    device_id = data.device_id or get_device_id(x_device_id)
     print(f"🏆 Investment: Received request to invest {data.merchant} for ${data.monthly_cost}")
     
     # Add Invalid Amount Guard
@@ -416,7 +417,8 @@ def handle_investment(data: InvestmentRequest):
     non_invested_rows = db.query(Transaction).filter(
         Transaction.merchant == data.merchant,
         Transaction.is_invested == False,
-        Transaction.status == "active"
+        Transaction.status == "active",
+        Transaction.device_id == device_id
     ).all()
     
     print(f"📊 Found {len(non_invested_rows)} non-invested rows for {data.merchant}")
@@ -430,7 +432,8 @@ def handle_investment(data: InvestmentRequest):
         db.commit()
         print(f"✅ Updated {len(non_invested_rows)} rows to invested for {data.merchant}")
     elif not db.query(Transaction).filter(
-        Transaction.merchant == data.merchant
+        Transaction.merchant == data.merchant,
+        Transaction.device_id == device_id
     ).first():
         # Create ONE new investment record
         print(f"➕ No existing rows found. Creating new investment record for {data.merchant}")
@@ -440,7 +443,8 @@ def handle_investment(data: InvestmentRequest):
             currency=data.currency,
             date=datetime.now().strftime("%Y-%m-%d"),
             status="active",
-            is_invested=True
+            is_invested=True,
+            device_id=device_id
         )
         db.add(investment)
         db.commit()
@@ -449,7 +453,8 @@ def handle_investment(data: InvestmentRequest):
     # Verify final count
     invested_count = db.query(Transaction).filter(
         Transaction.merchant == data.merchant,
-        Transaction.is_invested == True
+        Transaction.is_invested == True,
+        Transaction.device_id == device_id
     ).count()
     print(f"📊 FINAL: {invested_count} invested rows for {data.merchant}")
     
@@ -461,8 +466,9 @@ def handle_investment(data: InvestmentRequest):
 # =========================================================
 
 @app.post("/parse-sms")
-def parse_sms(data: SMSInput, request: Request):
+def parse_sms(data: SMSInput, request: Request, x_device_id: Optional[str] = Header(None)):
     check_rate_limit(request.client.host)
+    device_id = data.device_id or get_device_id(x_device_id)
     db = SessionLocal()
     lines = data.text.splitlines()
     parsed_transactions = []
@@ -639,7 +645,8 @@ def parse_sms(data: SMSInput, request: Request):
             date=transaction["date"],
             status="active",
             raw_sms=transaction.get("raw_sms"),
-            recurrence_confidence=initial_confidence
+            recurrence_confidence=initial_confidence,
+            device_id=device_id
         )
         db.add(t)
 
@@ -650,7 +657,8 @@ def parse_sms(data: SMSInput, request: Request):
     unique_merchants = set(t["merchant"] for t in parsed_transactions)
     for merchant_name in unique_merchants:
         merchant_txns = db.query(Transaction).filter(
-            Transaction.merchant == merchant_name
+            Transaction.merchant == merchant_name,
+            Transaction.device_id == device_id
         ).all()
         latest_sms = next(
             (t.raw_sms for t in reversed(merchant_txns) if t.raw_sms), ""
@@ -694,17 +702,21 @@ def get_brokerages():
         return {"status": "error", "message": str(e)}
 
 @app.delete("/subscriptions/{merchant}")
-def delete_subscription(merchant: str):
+def delete_subscription(merchant: str, x_device_id: Optional[str] = Header(None)):
     """
     Delete a subscription by merchant name.
     Removes all transactions for the given merchant.
     """
+    device_id = get_device_id(x_device_id)
     print(f"🗑️ Deleting subscription: {merchant}")
     db = SessionLocal()
     
     try:
         # Delete all transactions for this merchant
-        deleted_count = db.query(Transaction).filter(Transaction.merchant == merchant).delete()
+        deleted_count = db.query(Transaction).filter(
+            Transaction.merchant == merchant,
+            Transaction.device_id == device_id
+        ).delete()
         db.commit()
         print(f"✅ Deleted {deleted_count} transactions for {merchant}")
         db.close()
@@ -716,16 +728,17 @@ def delete_subscription(merchant: str):
         return {"status": "error", "message": f"Failed to delete {merchant} subscription"}
 
 @app.post("/reset")
-def reset_database():
+def reset_database(x_device_id: Optional[str] = Header(None)):
     """
     Clear all data from database.
     Called by frontend Reset button.
     """
-    print("🔄 Resetting entire database")
+    device_id = get_device_id(x_device_id)
+    print(f"🔄 Resetting database for device {device_id}")
     db = SessionLocal()
     
     try:
-        deleted_count = db.query(Transaction).delete()
+        deleted_count = db.query(Transaction).filter(Transaction.device_id == device_id).delete()
         db.commit()
         print(f"✅ Reset complete: deleted {deleted_count} transactions")
         db.close()
@@ -752,17 +765,21 @@ def clear_data():
         return {"status": "error", "message": f"Failed to clear database: {e}"}
 
 @app.post("/cancel")
-def sync_cancel(data: CancellationUpdate):
+def sync_cancel(data: CancellationUpdate, x_device_id: Optional[str] = Header(None)):
     """
     Sync cancellation status from frontend.
     Called when user confirms cancellation in Wealth Pilot.
     """
+    device_id = get_device_id(x_device_id)
     print(f"🔄 Syncing cancellation status for {data.merchant}")
     db = SessionLocal()
     
     try:
         # Update all transactions for this merchant to cancelled
-        updated_count = db.query(Transaction).filter(Transaction.merchant == data.merchant).update({
+        updated_count = db.query(Transaction).filter(
+            Transaction.merchant == data.merchant,
+            Transaction.device_id == device_id
+        ).update({
             "status": data.status,
             "cancellation_date": data.cancellation_date or datetime.now().strftime("%Y-%m-%d")
         })
@@ -952,12 +969,14 @@ def get_merchant_info(merchant_name: str):
 # =========================================================
 
 @app.get("/subscriptions/{merchant}/instances")
-def get_subscription_instances(merchant: str):
+def get_subscription_instances(merchant: str, x_device_id: Optional[str] = Header(None)):
+    device_id = get_device_id(x_device_id)
     db = SessionLocal()
     try:
         instances = db.query(Transaction).filter(
             Transaction.merchant == merchant,
-            Transaction.status == "active"
+            Transaction.status == "active",
+            Transaction.device_id == device_id
         ).all()
         
         return [
