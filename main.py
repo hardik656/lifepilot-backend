@@ -131,7 +131,7 @@ class InvestmentRequest(BaseModel):
 # ROUTES: DETECTION
 # =========================================================
 
-def classify_recurrence(merchant: str, amount: float, raw_sms: str, db) -> float:
+def classify_recurrence(merchant: str, amount: float, raw_sms: str, db, device_id: str = "legacy") -> float:
     """
     3-layer recurrence classifier.
     Returns confidence score between 0.0 and 1.0.
@@ -161,7 +161,8 @@ def classify_recurrence(merchant: str, amount: float, raw_sms: str, db) -> float
     # =========================================================
     transactions = db.query(Transaction).filter(
         Transaction.merchant == merchant,
-        Transaction.status == "active"
+        Transaction.status == "active",
+        Transaction.device_id == device_id
     ).order_by(Transaction.date).all()
 
     if len(transactions) < 2:
@@ -317,7 +318,7 @@ def detect_subscriptions(x_device_id: Optional[str] = Header(None)):
             )
 
             recurrence_score = classify_recurrence(
-                merchant, monthly_cost, latest_raw_sms, db
+                merchant, monthly_cost, latest_raw_sms, db, device_id
             )
 
             result.append({
@@ -636,7 +637,8 @@ def parse_sms(data: SMSInput, request: Request, x_device_id: Optional[str] = Hea
             transaction["merchant"],
             transaction["amount"],
             transaction.get("raw_sms", ""),
-            db
+            db,
+            device_id
         )
         t = Transaction(
             merchant=transaction["merchant"],
@@ -663,7 +665,7 @@ def parse_sms(data: SMSInput, request: Request, x_device_id: Optional[str] = Hea
         latest_sms = next(
             (t.raw_sms for t in reversed(merchant_txns) if t.raw_sms), ""
         )
-        updated_score = classify_recurrence(merchant_name, 0, latest_sms, db)
+        updated_score = classify_recurrence(merchant_name, 0, latest_sms, db, device_id)
         for t in merchant_txns:
             t.recurrence_confidence = updated_score
 
