@@ -25,6 +25,9 @@ schedule
 alpaca-py
 psycopg2-binary
 sentry-sdk[fastapi]
+yfinance
+pandas
+requests
 
 
 
