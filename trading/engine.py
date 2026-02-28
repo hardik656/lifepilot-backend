@@ -23,8 +23,8 @@ np.random.seed(42)
 # =========================================================
 # 🛡️ CONFIGURATION
 # =========================================================
-ALPACA_KEY = "PKWMZZGUM7LUOPT7H5XHSFOBFS"
-ALPACA_SECRET = "27vVNH1R75o4g7uiBuxEvkfNBkjRFkjtVHb6AYve9oza"
+ALPACA_KEY = "PKXV7Q55RDCNWF3KMBFSSQKL4M"
+ALPACA_SECRET = "GeVWw8J96PZ1M5Q4WksHy2fFQW8KrNCacHCoCurUm7Dy"
 
 TICKERS = [
     "TSM", "SONY", "HMC", "TM", "BABA", "JD", "BIDU", "PDD", "INFY", "WIT", "HDB", "IBN",
