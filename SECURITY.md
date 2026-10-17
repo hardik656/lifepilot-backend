@@ -19,7 +19,7 @@ regex:ALPACA_SECRET\s*=\s*"[^"]+"==>ALPACA_SECRET = "REDACTED"
 regex:FINNHUB_KEY\s*=\s*"[^"]+"==>FINNHUB_KEY = "REDACTED"
 TXT
 git filter-repo --replace-text ../replacements.txt
-git log -p --all | grep -E 'PK[A-Z0-9]{18,}|GeVWw8|27vVNH|d65ov1hr' || echo "clean"
+git log -p --all | grep -E 'PK[A-Z0-9]{18,}|ALPACA_SECRET = "[A-Za-z0-9]{20,}"|FINNHUB_KEY = "[a-z0-9]{20,}"' || echo "clean"
 git push --force --mirror
 ```
 
