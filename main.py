@@ -3,18 +3,15 @@
 # =========================================================
 import sys
 import os
-import pandas as pd
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from automation.cancel_bot import start_cancellation_bot
-from fastapi import FastAPI, UploadFile, File, Request, HTTPException, Header
+from fastapi import FastAPI, Request, HTTPException, Header
 import time
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import create_engine, Column, Integer, String, Float, Boolean, text
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy import Column, Integer, String, Float, Boolean, text
 from pydantic import BaseModel
 from collections import defaultdict
 from datetime import datetime, timezone
-import csv
 import re
 
 import sentry_sdk
@@ -119,7 +116,7 @@ class CancellationUpdate(BaseModel):
 class CancelRequest(BaseModel):
     merchant: str
     username: str = "user@example.com"
-    password: str = "password123"
+    password: str = "password123"  # noqa: S105 - placeholder default used by the demo client
 
 class InvestmentRequest(BaseModel):
     merchant: str
@@ -825,7 +822,9 @@ def market_scan():
     import requests
     from collections import defaultdict
 
-    FINNHUB_KEY = "d65ov1hr01qiish0i2rgd65ov1hr01qiish0i2s0"
+    FINNHUB_KEY = os.environ.get("FINNHUB_API_KEY", "")
+    if not FINNHUB_KEY:
+        raise HTTPException(503, "Market scan unavailable: FINNHUB_API_KEY is not configured")
 
     tickers = [
         "NVDA", "AAPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA",

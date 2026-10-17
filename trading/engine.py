@@ -2,7 +2,7 @@
 # 🧠 Trading Engine Module
 # =========================================================
 
-import os, time, warnings, json, joblib, csv, logging
+import os, time, warnings, json, joblib, logging
 from datetime import datetime
 from collections import Counter
 import numpy as np
@@ -23,8 +23,10 @@ np.random.seed(42)
 # =========================================================
 # 🛡️ CONFIGURATION
 # =========================================================
-ALPACA_KEY = "PKXV7Q55RDCNWF3KMBFSSQKL4M"
-ALPACA_SECRET = "GeVWw8J96PZ1M5Q4WksHy2fFQW8KrNCacHCoCurUm7Dy"
+# Credentials come from the environment (see .env.example). Never hard-code them.
+ALPACA_KEY = os.environ.get("ALPACA_API_KEY", "").strip()
+ALPACA_SECRET = os.environ.get("ALPACA_SECRET_KEY", "").strip()
+ALPACA_PAPER = os.environ.get("ALPACA_PAPER", "true").lower() != "false"
 
 TICKERS = [
     "TSM", "SONY", "HMC", "TM", "BABA", "JD", "BIDU", "PDD", "INFY", "WIT", "HDB", "IBN",
@@ -54,7 +56,9 @@ RISK_PER_TRADE = 0.01
 MAX_PER_SECTOR = 2 
 MAX_SECTOR_EXPOSURE = 0.25 # 📊 Portfolio Limit: 25% per sector
 
-alpaca = TradingClient(ALPACA_KEY.strip(), ALPACA_SECRET.strip(), paper=True)
+alpaca = TradingClient(ALPACA_KEY, ALPACA_SECRET, paper=ALPACA_PAPER) if ALPACA_KEY and ALPACA_SECRET else None
+if alpaca is None:
+    logging.warning("ALPACA_API_KEY / ALPACA_SECRET_KEY not set: trading cycle is disabled")
 
 # =========================================================
 # 📉 NEW: 10-LINE REGIME FILTER
@@ -175,6 +179,9 @@ def retrain_models():
 # =========================================================
 def main_cycle():
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Global Scanning...")
+    if alpaca is None:
+        logging.error("main_cycle skipped: Alpaca credentials are not configured")
+        return
     current_signals = {}
     try:
         acc = alpaca.get_account(); equity = float(acc.equity)

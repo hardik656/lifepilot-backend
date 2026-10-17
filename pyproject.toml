@@ -1,0 +1,21 @@
+[project]
+name = "lifepilot-backend"
+version = "0.1.0"
+requires-python = ">=3.11"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = ["venv"]
+
+[tool.ruff.lint]
+# Baseline: real errors only. Tighten as modules are cleaned up.
+select = ["E9", "F63", "F7", "F82", "F401", "S105", "S106"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S105", "S106"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-p no:cacheprovider"
+filterwarnings = ["ignore::DeprecationWarning"]

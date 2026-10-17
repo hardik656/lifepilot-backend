@@ -6,7 +6,6 @@ import time
 import warnings
 import logging
 import schedule
-from datetime import datetime
 
 # Import trading engine (DO NOT MODIFY ENGINE LOGIC)
 from trading.engine import (
